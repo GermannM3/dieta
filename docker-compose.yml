@@ -1,23 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL база данных (локальная альтернатива Neon)
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: dietolog
-      POSTGRES_PASSWORD: dietolog_password
-      POSTGRES_DB: dietolog_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dietolog"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   # FastAPI Backend
   api:
     build:
@@ -26,21 +9,17 @@ services:
     command: python improved_api_server.py
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://dietolog:dietolog_password@postgres:5432/dietolog_db
-      - TG_TOKEN=${TG_TOKEN}
-      - ADMIN_ID=${ADMIN_ID}
-      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
-      - CALORIE_NINJAS_API_KEY=${CALORIE_NINJAS_API_KEY}
-      - GIGACHAT_CLIENT_ID=0ac3bc43-79fb-49cf-86bc-c9c806a8e3d6
-      - GIGACHAT_AUTH_KEY=MGFjM2JjNDMtNzlmYi00OWNmLTg2YmMtYzljODA2YThlM2Q2OmUyMGFlMDJjLTNmMjAtNGE4ZC1iMWE4LTRiMTA1YmI2OGMwZQ==
-      - GIGACHAT_ACCESS_TOKEN=eyJjdHkiOiJqd3QiLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwiYWxnIjoiUlNBLU9BRVAtMjU2In0.aOK9-2zcblRoXqPbLCJB4yIbtC8muMZib9-qVA58lYDhzFNikGq9b9L28h3ZtT8cOBRTY_NzkGLYB5TkQDnDw4uYXetfAClknrjtnbUwG6aIRl1gkrxRQ3dpqDeyM4JJIFQfyRQr9PZHXb63BoojQxPuUItRcCCBRRxWZhNy1SC127nlKzbTxI2118d1ZnIJA8TmA0o-k_daySPf4Es473QRuANqrpQcocAIfMAukLZ5PZwtFI1ryNFNW5zTPEb0lH4JTcoiQ0lpA_v3fN7qScLmqy89nrETP1cmUE1vowrwWjugdUzI_TLpqycB-iihI5imvCGBC0zmLs_g0a-HHA.mmPgF3sIM-OaD_xmUuYeAg.ZhS46wM1_8-s8M5KV1y_67hl1CiSue6qlMuqpop3PzkNdtxrEzFYL_tMxhjgZ--C2Q8mrxpcuJWsa0sR8_kDRRNIKvWmA6kyYrzxFRX3tsbhIvmNPf78RcNHznuuirzibA74hCvBlnAKRG3UDqLqH3oFKxwJv_rJKxKByntWLzo_mPKlY_oxVNRo8D8YOoHqkZ2G9KLcI-MhCKGL3JTpk3Pcy1sNoq9EVqIFIcHTZMnWvWlKB0Tj3TlEtsV0fs1mAepfyaTQ30Dasc2uvHOK4JyLRr33jq5zBwKkZgb4g7zaJeHysIW7lo_foIwVNO5k7peGIbjQNEDMqdZVwwiraP1cSs4JDKb1Wh3OmTirfHOclC5SSCAwuYHP8GxbOSpHx2vwSabb_dBzuQSx-Aix_x9jVs7aym0j7IhOb80nb8Yf_eg5V9liALShdoHdHy5v-aVY9eBv8T9IwufbHQK99O8gITICX2F-yEu-u0EZzDpB5PdaEtgAP-UYiww_5oOsywf5I07GaPZRsfuOv5dOb8FWx-RippEcxL30O2VF2WddNl_tyDybiavjrlDosopVyhSbnkdAxCbD-UZCs3uTVMD02qI34vhe5bm9zAWEtQ2zxdiJFBCPj-rM3G3KZDaoUdbvjJTfnAJvnxkOs_Qn6fe0N4hT0aHq83zdp4FMwFv07guS4VKjMlliUZt9KY12a_tvx3jwBqfEK02359i1DT3xRsI3SyfxSRYAOOwaEJk.hVaE9Tnbto8JDLaBqSjs8HH5dMtWjgME-MewX1m-2Lo
-    depends_on:
-      postgres:
-        condition: service_healthy
+    env_file:
+      - .env
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Telegram Bot
   bot:
@@ -48,44 +27,31 @@ services:
       context: .
       dockerfile: Dockerfile
     command: python main.py
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://dietolog:dietolog_password@postgres:5432/dietolog_db
-      - TG_TOKEN=${TG_TOKEN}
-      - ADMIN_ID=${ADMIN_ID}
-      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
-      - CALORIE_NINJAS_API_KEY=${CALORIE_NINJAS_API_KEY}
-      - API_URL=http://api:8000
-    depends_on:
-      - api
-      - postgres
+    env_file:
+      - .env
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
 
   # React Frontend
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./calorie-love-tracker
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000
+        - VITE_APP_TITLE=Твой Диетолог - Персональный ИИ-помощник
+        - VITE_APP_DESCRIPTION=Продвинутый телеграм-бот с личным диетологом
+        - VITE_TELEGRAM_BOT_USERNAME=@tvoy_diet_bot
     ports:
-      - "3000:80"
+      - "3000:3000"
+    restart: unless-stopped
     depends_on:
       - api
-    restart: unless-stopped
-
-  # Nginx Reverse Proxy (опционально)
-  # nginx:
-  #   image: nginx:alpine
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx-prod.conf:/etc/nginx/conf.d/default.conf
-  #     - ./ssl:/etc/nginx/ssl
-  #   depends_on:
-  #     - api
-  #     - frontend
-  #   restart: unless-stopped
 
 volumes:
-  postgres_data: 
+  logs_data:
+    driver: local 

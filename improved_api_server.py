@@ -108,206 +108,29 @@ class PresetIn(BaseModel):
 
 class WaterIn(BaseModel):
     user_id: int
-    ml: int
+    amount_ml: int
 
-class MenuRequest(BaseModel):
-    user_id: int
-    meal_type: str  # breakfast, lunch, dinner, snack
-    target_calories: Optional[int] = None
-
-# Функции для работы с питанием
-async def search_food_calorie_ninjas(food_name: str) -> Optional[Dict]:
-    """Поиск продукта через CalorieNinjas API"""
+# Health check endpoint для Docker
+@app.get("/health")
+async def health_check():
+    """Проверка состояния API сервера"""
     try:
-        response = requests.get(
-            # CALORIE_NINJAS_URL + food_name,
-            # headers={"X-Api-Key": CALORIE_NINJAS_API_KEY},
-            timeout=10
-        )
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("items"):
-                return data["items"][0]
-    except Exception as e:
-        logging.error(f"Ошибка CalorieNinjas API: {e}")
-    return None
-
-async def search_food_local_db(food_name: str, session: AsyncSession) -> Optional[Dict]:
-    """Поиск продукта в локальной базе FoodData Central"""
-    try:
-        # Поиск по названию в локальной базе
-        result = await session.execute(
-            text("SELECT fdc_id, description FROM food WHERE LOWER(description) LIKE LOWER(:query) LIMIT 1"),
-            {"query": f"%{food_name}%"}
-        )
-        food_row = result.fetchone()
+        # Проверяем подключение к БД
+        async with async_session() as session:
+            result = await session.execute(text("SELECT 1"))
+            db_status = "ok" if result.scalar() == 1 else "error"
         
-        if food_row:
-            fdc_id, description = food_row
-            
-            # Получаем основные нутриенты (калории, белки, жиры, углеводы)
-            nutrient_query = text("""
-                SELECT n.amount, n.nutrient_id 
-                FROM food_nutrient n 
-                WHERE n.fdc_id = :fdc_id 
-                AND n.nutrient_id IN (1008, 1003, 1004, 1005)
-            """)
-            
-            nutrients = await session.execute(nutrient_query, {"fdc_id": fdc_id})
-            nutrient_data = {row.nutrient_id: row.amount for row in nutrients}
-            
-            return {
-                "name": description,
-                "calories": nutrient_data.get(1008, 0),  # Energy
-                "protein_g": nutrient_data.get(1003, 0),  # Protein
-                "fat_total_g": nutrient_data.get(1004, 0),  # Total lipid (fat)
-                "carbohydrates_total_g": nutrient_data.get(1005, 0),  # Carbohydrate
-                "serving_size_g": 100  # Стандартная порция 100г
-            }
-    except Exception as e:
-        logging.error(f"Ошибка поиска в локальной базе: {e}")
-    return None
-
-async def get_food_nutrition(food_name: str, session: AsyncSession) -> Optional[Dict]:
-    """Получение питательности продукта с многоуровневым fallback"""
-    # Получаем варианты поиска
-    search_variants = get_search_variants(food_name)
-    
-    # Пробуем каждый вариант в CalorieNinjas
-    for variant in search_variants:
-        nutrition = await search_food_calorie_ninjas(variant)
-        if nutrition:
-            return nutrition
-    
-    # Если не найдено в CalorieNinjas, ищем в локальной базе
-    for variant in search_variants:
-        nutrition = await search_food_local_db(variant, session)
-        if nutrition:
-            return nutrition
-    
-    # Последний fallback - встроенные данные
-    return get_fallback_nutrition(food_name)
-
-async def generate_meal_suggestions_with_ai(user_id: int, meal_type: str, target_calories: int, session: AsyncSession) -> List[Dict]:
-    """Генерация предложений блюд для меню с использованием AI"""
-    try:
-        # Получаем профиль пользователя
-        user = await session.get(User, user_id)
-        user_info = ""
-        if user and user.age and user.weight:
-            user_info = f"Пользователь: {user.age} лет, вес {user.weight} кг, пол {user.gender or 'не указан'}, активность {user.activity_level or 1}/5"
-        
-        # Получаем историю питания пользователя
-        user_meals = await session.execute(
-            select(Meal.food_name).where(Meal.user_id == user_id).distinct().limit(10)
-        )
-        user_foods = [row[0] for row in user_meals.fetchall()]
-        user_history = f"Ранее ел: {', '.join(user_foods[:5])}" if user_foods else "История питания пуста"
-        
-        # Формируем промпт для AI
-        meal_names = {
-            'breakfast': 'завтрак',
-            'lunch': 'обед', 
-            'dinner': 'ужин',
-            'snack': 'перекус'
+        return {
+            "status": "healthy",
+            "database": db_status,
+            "timestamp": datetime.now().isoformat()
         }
-        
-        prompt = f"""Создай меню для {meal_names.get(meal_type, 'приёма пищи')} на {target_calories} ккал.
-{user_info}
-{user_history}
-
-Требования:
-1. Предложи 3-5 конкретных блюд/продуктов
-2. Укажи примерный вес каждого продукта в граммах
-3. Учти сбалансированность БЖУ
-4. Используй доступные продукты
-
-Формат ответа (только список, без дополнительного текста):
-- Название продукта: вес в граммах
-- Название продукта: вес в граммах
-...
-
-Пример:
-- Овсянка на молоке: 200
-- Банан: 100
-- Грецкие орехи: 30"""
-
-        # Вызываем AI для генерации меню
-        from api.ai_api.gigachat_api import generate_text_gigachat
-        ai_response = await generate_text_gigachat(prompt)
-        
-        # Парсим ответ AI
-        menu_items = []
-        if ai_response:
-            lines = ai_response.strip().split('\n')
-            for line in lines:
-                if ':' in line and '-' in line:
-                    # Убираем "- " в начале
-                    clean_line = line.strip().lstrip('- ')
-                    if ':' in clean_line:
-                        food_name, weight_str = clean_line.split(':', 1)
-                        food_name = food_name.strip()
-                        
-                        # Извлекаем число из строки веса
-                        import re
-                        weight_match = re.search(r'(\d+)', weight_str.strip())
-                        if weight_match:
-                            weight = int(weight_match.group(1))
-                            
-                            # Получаем питательность
-                            nutrition = await get_food_nutrition(food_name, session)
-                            if nutrition:
-                                factor = weight / nutrition["serving_size_g"]
-                                menu_items.append({
-                                    "name": food_name,
-                                    "weight_grams": weight,
-                                    "calories": round(nutrition["calories"] * factor),
-                                    "protein": round(nutrition.get("protein_g", 0) * factor),
-                                    "fat": round(nutrition.get("fat_total_g", 0) * factor),
-                                    "carbs": round(nutrition.get("carbohydrates_total_g", 0) * factor)
-                                })
-        
-        # Если AI не сработал, используем fallback
-        if not menu_items:
-            return await generate_fallback_menu(meal_type, target_calories, session)
-        
-        return menu_items
-        
     except Exception as e:
-        logging.error(f"Ошибка генерации меню с AI: {e}")
-        return await generate_fallback_menu(meal_type, target_calories, session)
-
-async def generate_fallback_menu(meal_type: str, target_calories: int, session: AsyncSession) -> List[Dict]:
-    """Fallback генерация меню без AI"""
-    meal_suggestions = {
-        "breakfast": ["овсянка", "яйца", "творог", "банан", "хлеб"],
-        "lunch": ["курица", "рис", "овощи", "салат", "макароны"],
-        "dinner": ["рыба", "гречка", "овощи", "салат", "курица"],
-        "snack": ["яблоко", "орехи", "йогурт", "банан", "творог"]
-    }
-    
-    suggestions = meal_suggestions.get(meal_type, meal_suggestions["lunch"])
-    menu_items = []
-    
-    for food_name in suggestions[:4]:
-        nutrition = await get_food_nutrition(food_name, session)
-        if nutrition:
-            if nutrition.get("calories", 0) > 0:
-                weight = min(300, max(50, (target_calories // len(suggestions)) * nutrition["serving_size_g"] / nutrition["calories"]))
-            else:
-                weight = 100
-            
-            factor = weight / nutrition["serving_size_g"]
-            menu_items.append({
-                "name": food_name,
-                "weight_grams": round(weight),
-                "calories": round(nutrition["calories"] * factor),
-                "protein": round(nutrition.get("protein_g", 0) * factor),
-                "fat": round(nutrition.get("fat_total_g", 0) * factor),
-                "carbs": round(nutrition.get("carbohydrates_total_g", 0) * factor)
-            })
-    
-    return menu_items
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 # API endpoints
 @app.post("/api/meal")
@@ -649,7 +472,7 @@ async def add_water(water: WaterIn):
             session.add(user)
         
         current_water = getattr(user, 'water_ml', 0) or 0
-        user.water_ml = current_water + water.ml
+        user.water_ml = current_water + water.amount_ml
         await session.commit()
         return {"status": "ok", "total_water": user.water_ml}
 

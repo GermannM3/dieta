@@ -1,127 +1,151 @@
 #!/bin/bash
 
-# Автоматический деплой Твой Диетолог на сервер
-# Скачивает последнюю версию с GitHub и разворачивает бота + веб-приложение
+# Автоматический деплой диетолог-бота на Timeweb Cloud
+set -e
 
-set -e  # Остановка при любой ошибке
-
+echo "🚀 Автоматический деплой 'Твой Диетолог'"
 echo "=========================================="
-echo "   АВТОМАТИЧЕСКИЙ ДЕПЛОЙ ТВОЙ ДИЕТОЛОГ"
-echo "=========================================="
-echo
 
-# Переменные
+# Конфигурация
 REPO_URL="https://github.com/GermannM3/dieta.git"
 APP_DIR="/opt/dieta"
-WEBAPP_DIR="/opt/diet-webapp"
-BOT_NAME="dieta-bot"
-API_NAME="dieta-api"
-WEBAPP_NAME="diet-webapp"
+COMPOSE_FILE="docker-compose.yml"
 
-echo "🔧 Настройка переменных окружения..."
+# Функция для логирования
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
 
-# Создаем .env файл если его нет
-if [ ! -f "$APP_DIR/.env" ]; then
-    echo "⚙️ Создание файла конфигурации..."
-    cat > "$APP_DIR/.env" << 'EOF'
-# Telegram Bot Configuration
-TG_TOKEN=your_telegram_bot_token_from_botfather
-ADMIN_ID=your_telegram_id_number
+# Проверка root прав
+if [[ $EUID -ne 0 ]]; then
+   echo "❌ Этот скрипт должен запускаться от root" 
+   exit 1
+fi
 
-# Database Configuration
-DATABASE_URL=postgresql+asyncpg://user:password@host:port/database
+log "📦 Обновление системы..."
+apt update && apt upgrade -y
 
-# AI API Keys
-GIGACHAT_CLIENT_ID=your_gigachat_client_id
-GIGACHAT_AUTH_KEY=your_gigachat_auth_key
-GIGACHAT_ACCESS_TOKEN=your_gigachat_access_token
-MISTRAL_API_KEY=your_mistral_api_key
-CALORIE_NINJAS_API_KEY=your_calorie_ninjas_api_key
+log "🐳 Установка Docker..."
+if ! command -v docker &> /dev/null; then
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
+    systemctl enable docker
+    systemctl start docker
+fi
 
-# Optional Settings
-LOG_LEVEL=INFO
-API_PORT=8000
-EOF
-    echo "❌ ВНИМАНИЕ! Отредактируйте файл $APP_DIR/.env с вашими ключами"
-    echo "Затем запустите скрипт снова"
+log "🔧 Установка Docker Compose..."
+if ! command -v docker-compose &> /dev/null; then
+    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+fi
+
+log "📂 Подготовка директории приложения..."
+mkdir -p $APP_DIR
+cd $APP_DIR
+
+# Остановка существующих контейнеров
+log "🛑 Остановка существующих сервисов..."
+if [ -f $COMPOSE_FILE ]; then
+    docker-compose down || true
+fi
+
+# Клонирование/обновление репозитория
+if [ -d ".git" ]; then
+    log "🔄 Обновление кода из GitHub..."
+    git fetch origin
+    git reset --hard origin/main
+    git clean -fd
+else
+    log "⬇️ Клонирование репозитория..."
+    rm -rf * .*
+    git clone $REPO_URL .
+fi
+
+# Проверка файла окружения
+if [ ! -f ".env" ]; then
+    log "⚠️ Файл .env не найден!"
+    log "📝 Создание шаблона .env..."
+    cp env.example .env
+    
+    echo "❌ КРИТИЧНО: Необходимо настроить файл .env!"
+    echo "📋 Отредактируйте файл: nano $APP_DIR/.env"
+    echo "🔑 Заполните:"
+    echo "   - TG_TOKEN (токен Telegram бота)"
+    echo "   - DATABASE_URL (подключение к PostgreSQL)"
+    echo "   - MISTRAL_API_KEY (ключ Mistral AI)"
+    echo "   - GIGACHAT_* (ключи GigaChat)"
+    echo ""
+    echo "⚡ После настройки запустите: $APP_DIR/auto-deploy.sh"
     exit 1
 fi
 
-echo "📦 Остановка старых контейнеров..."
-docker stop $BOT_NAME $API_NAME $WEBAPP_NAME 2>/dev/null || true
-docker rm $BOT_NAME $API_NAME $WEBAPP_NAME 2>/dev/null || true
+log "🔍 Проверка файла .env..."
+source .env
 
-echo "📂 Подготовка директорий..."
-mkdir -p $APP_DIR
-mkdir -p $WEBAPP_DIR
+# Проверка обязательных переменных
+required_vars=("TG_TOKEN" "DATABASE_URL" "MISTRAL_API_KEY")
+for var in "${required_vars[@]}"; do
+    if [ -z "${!var}" ]; then
+        echo "❌ Переменная $var не установлена в .env"
+        exit 1
+    fi
+done
 
-echo "📥 Скачивание последней версии с GitHub..."
-if [ -d "$APP_DIR/.git" ]; then
-    cd $APP_DIR
-    git pull origin main
+log "✅ Конфигурация корректна"
+
+# Сборка и запуск контейнеров
+log "🏗️ Сборка и запуск сервисов..."
+docker-compose up --build -d
+
+# Ожидание запуска сервисов
+log "⏳ Ожидание запуска сервисов..."
+sleep 30
+
+# Проверка статуса
+log "📊 Проверка статуса сервисов..."
+docker-compose ps
+
+# Проверка логов
+log "📝 Последние логи API сервера:"
+docker-compose logs --tail=10 api
+
+log "📝 Последние логи Telegram бота:"
+docker-compose logs --tail=10 bot
+
+log "📝 Последние логи веб-приложения:"
+docker-compose logs --tail=10 frontend
+
+# Проверка доступности
+log "🌐 Проверка доступности сервисов..."
+
+# API сервер
+if curl -f http://localhost:8000/health > /dev/null 2>&1; then
+    log "✅ API сервер работает"
 else
-    rm -rf $APP_DIR/*
-    git clone $REPO_URL $APP_DIR
-    cd $APP_DIR
+    log "⚠️ API сервер недоступен"
 fi
 
-echo "🐳 Сборка Docker образов..."
+# Веб-приложение
+if curl -f http://localhost:3000 > /dev/null 2>&1; then
+    log "✅ Веб-приложение работает"
+else
+    log "⚠️ Веб-приложение недоступен"
+fi
 
-# Сборка основного образа для бота и API
-docker build -t dieta-app:latest .
-
-# Сборка веб-приложения
-cd calorie-love-tracker
-cp -r * $WEBAPP_DIR/
-cd $WEBAPP_DIR
-
-docker build -t diet-webapp:latest \
-  --build-arg VITE_API_URL=http://$(hostname -I | awk '{print $1}'):8000 \
-  --build-arg VITE_APP_TITLE="Твой Диетолог - Персональный ИИ-помощник" \
-  --build-arg VITE_APP_DESCRIPTION="Продвинутый телеграм-бот с личным диетологом" \
-  --build-arg VITE_TELEGRAM_BOT_USERNAME=@tvoy_diet_bot \
-  .
-
-echo "🚀 Запуск сервисов..."
-
-# Запуск API сервера
-docker run -d \
-  --name $API_NAME \
-  --restart unless-stopped \
-  -p 8000:8000 \
-  --env-file $APP_DIR/.env \
-  -v $APP_DIR/logs:/app/logs \
-  dieta-app:latest python improved_api_server.py
-
-# Ждем запуска API
-sleep 5
-
-# Запуск Telegram бота
-docker run -d \
-  --name $BOT_NAME \
-  --restart unless-stopped \
-  --env-file $APP_DIR/.env \
-  -e API_URL=http://$(hostname -I | awk '{print $1}'):8000 \
-  -v $APP_DIR/logs:/app/logs \
-  --depends-on $API_NAME \
-  dieta-app:latest python main.py
-
-# Запуск веб-приложения
-docker run -d \
-  --name $WEBAPP_NAME \
-  --restart unless-stopped \
-  -p 3000:3000 \
-  diet-webapp:latest
-
-echo "🌐 Настройка nginx..."
-
-# Создаем конфигурацию nginx
-cat > /etc/nginx/sites-available/dieta << 'EOL'
+# Настройка nginx (если не настроен)
+if [ ! -f "/etc/nginx/sites-available/dieta" ]; then
+    log "🔧 Настройка Nginx..."
+    
+    # Установка nginx
+    apt install -y nginx
+    
+    # Создание конфигурации
+    cat > /etc/nginx/sites-available/dieta << 'NGINX_EOF'
 server {
-    listen 80 default_server;
+    listen 80;
     server_name _;
     
-    # Веб-приложение
+    # Веб-приложение (главная страница)
     location / {
         proxy_pass http://localhost:3000;
         proxy_set_header Host $host;
@@ -132,7 +156,7 @@ server {
     
     # API сервер
     location /api/ {
-        proxy_pass http://localhost:8000/api/;
+        proxy_pass http://localhost:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -141,62 +165,37 @@ server {
     
     # Документация API
     location /docs {
-        proxy_pass http://localhost:8000/docs;
+        proxy_pass http://localhost:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
-EOL
+NGINX_EOF
+    
+    # Активация сайта
+    ln -sf /etc/nginx/sites-available/dieta /etc/nginx/sites-enabled/
+    rm -f /etc/nginx/sites-enabled/default
+    
+    # Перезапуск nginx
+    nginx -t && systemctl restart nginx
+    systemctl enable nginx
+    
+    log "✅ Nginx настроен"
+fi
 
-# Удаляем конфликтующие конфигурации
-rm -f /etc/nginx/sites-enabled/default
-rm -f /etc/nginx/sites-enabled/webapp
-
-# Активируем новую конфигурацию
-ln -sf /etc/nginx/sites-available/dieta /etc/nginx/sites-enabled/dieta
-
-# Тестируем и перезагружаем nginx
-nginx -t && systemctl reload nginx
-
-echo "✅ Проверка статуса сервисов..."
-sleep 3
-
-echo "Статус контейнеров:"
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
-echo
-echo "Логи API сервера:"
-docker logs $API_NAME --tail 5
-
-echo
-echo "Логи Telegram бота:"
-docker logs $BOT_NAME --tail 5
-
-echo
-echo "Логи веб-приложения:"
-docker logs $WEBAPP_NAME --tail 5
-
-SERVER_IP=$(hostname -I | awk '{print $1}')
-
-echo
-echo "=========================================="
-echo "          ДЕПЛОЙ ЗАВЕРШЕН УСПЕШНО!"
-echo "=========================================="
-echo
-echo "🌐 Веб-приложение: http://$SERVER_IP"
-echo "📡 API сервер: http://$SERVER_IP:8000"
-echo "📚 API документация: http://$SERVER_IP/docs"
+echo ""
+echo "🎉 ДЕПЛОЙ ЗАВЕРШЕН УСПЕШНО!"
+echo "================================"
+echo "🌐 Веб-приложение: http://$(curl -s ifconfig.me)"
+echo "🔗 API документация: http://$(curl -s ifconfig.me)/docs"
 echo "🤖 Telegram бот: @tvoy_diet_bot"
-echo
-echo "📊 Для мониторинга используйте:"
-echo "docker logs $BOT_NAME -f      # Логи бота"
-echo "docker logs $API_NAME -f      # Логи API"
-echo "docker logs $WEBAPP_NAME -f   # Логи веб-приложения"
-echo
-echo "🔄 Для обновления запустите:"
-echo "cd $APP_DIR && ./auto-deploy.sh"
-echo
-echo "⚙️ Конфигурация в файле: $APP_DIR/.env"
-echo 
+echo ""
+echo "📊 Управление сервисами:"
+echo "   Статус:     docker-compose ps"
+echo "   Логи:       docker-compose logs -f [api|bot|frontend]"
+echo "   Перезапуск: docker-compose restart [api|bot|frontend]"
+echo "   Остановка:  docker-compose down"
+echo ""
+echo "🔄 Для обновления запустите: $APP_DIR/auto-deploy.sh" 
