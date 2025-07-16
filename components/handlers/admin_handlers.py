@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 import os
 
-from database.crud import amount_of_users, get_all_users_id
+from database.crud import amount_of_users, get_all_users
 from components.keyboards.admin_kb import kb_admin, kb_cancel
 from components.states.admin_states import Admin
 from core.init_bot import bot
@@ -34,7 +34,7 @@ async def write_mail(callback: CallbackQuery, state: FSMContext):
 
 @admin_router.message(Admin.mail_text)
 async def send_mails(message: Message, state: FSMContext):
-    users_id = await get_all_users_id()
+    users_id = await get_all_users()
     succes_users = 0
     if message.content_type == ContentType.TEXT:
         await state.clear()

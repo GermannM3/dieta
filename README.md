@@ -30,18 +30,18 @@
 ## 🚀 Быстрый старт
 
 ### 1. Клонирование проекта
-```bash
+   ```bash
 git clone https://github.com/GermannM3/dieta.git
 cd dieta
-```
+   ```
 
 ### 2. Настройка окружения
-```bash
+     ```bash
 # Создание виртуального окружения
 python -m venv venv
 
 # Активация (Windows)
-venv\Scripts\activate
+     venv\Scripts\activate
 
 # Активация (Linux/Mac)
 source venv/bin/activate
@@ -51,7 +51,7 @@ pip install -r requirements.txt
 ```
 
 ### 3. Конфигурация
-```bash
+     ```bash
 # Копирование примера конфигурации
 cp env.example .env
 
@@ -65,7 +65,7 @@ cp env.example .env
 ### 4. Запуск
 
 #### Простой способ (Windows):
-```bash
+   ```bash
 start_without_docker.bat
 ```
 
@@ -85,7 +85,7 @@ cd calorie-love-tracker && npm run dev  # Веб-приложение
 ## 🛠 Деплой на сервер
 
 ### Автоматический деплой с GitHub
-```bash
+   ```bash
 # Создайте скрипт auto-deploy.sh на сервере:
 curl -O https://raw.githubusercontent.com/GermannM3/dieta/main/auto-deploy.sh
 chmod +x auto-deploy.sh
