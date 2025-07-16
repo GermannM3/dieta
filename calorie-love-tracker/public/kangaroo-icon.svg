@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- Рамка -->
+  <rect x="5" y="5" width="110" height="110" rx="15" ry="15" 
+        fill="none" stroke="#2c3e50" stroke-width="3"/>
+  
+  <!-- Тело кенгуру -->
+  <ellipse cx="60" cy="75" rx="25" ry="30" fill="#cd853f"/>
+  
+  <!-- Голова -->
+  <circle cx="60" cy="40" r="18" fill="#cd853f"/>
+  
+  <!-- Уши -->
+  <ellipse cx="48" cy="28" rx="8" ry="15" fill="#cd853f" transform="rotate(-20 48 28)"/>
+  <ellipse cx="72" cy="28" rx="8" ry="15" fill="#cd853f" transform="rotate(20 72 28)"/>
+  <ellipse cx="48" cy="28" rx="4" ry="8" fill="#8b4513" transform="rotate(-20 48 28)"/>
+  <ellipse cx="72" cy="28" rx="4" ry="8" fill="#8b4513" transform="rotate(20 72 28)"/>
+  
+  <!-- Глаза -->
+  <circle cx="54" cy="38" r="3" fill="#000"/>
+  <circle cx="66" cy="38" r="3" fill="#000"/>
+  <circle cx="54.5" cy="37" r="1" fill="#fff"/>
+  <circle cx="66.5" cy="37" r="1" fill="#fff"/>
+  
+  <!-- Нос -->
+  <ellipse cx="60" cy="45" rx="2" ry="1.5" fill="#8b4513"/>
+  
+  <!-- Рот -->
+  <path d="M 57 48 Q 60 50 63 48" stroke="#8b4513" stroke-width="2" fill="none"/>
+  
+  <!-- Сумка кенгуру -->
+  <path d="M 50 65 Q 50 85 70 85 Q 70 65 60 68 Z" fill="#b8860b" stroke="#8b4513" stroke-width="2"/>
+  
+  <!-- Руки -->
+  <ellipse cx="40" cy="65" rx="6" ry="15" fill="#cd853f"/>
+  <ellipse cx="80" cy="65" rx="6" ry="15" fill="#cd853f"/>
+  
+  <!-- Ноги -->
+  <ellipse cx="50" cy="95" rx="8" ry="12" fill="#cd853f"/>
+  <ellipse cx="70" cy="95" rx="8" ry="12" fill="#cd853f"/>
+  
+  <!-- Хвост -->
+  <path d="M 35 80 Q 25 85 30 95 Q 35 88 40 85" fill="#cd853f" stroke="#8b4513" stroke-width="1"/>
+  
+  <!-- Текст "ТВОЙ ДИЕТОЛОГ" -->
+  <text x="60" y="15" text-anchor="middle" font-family="Arial, sans-serif" 
+        font-size="8" font-weight="bold" fill="#2c3e50">ТВОЙ</text>
+  <text x="60" y="112" text-anchor="middle" font-family="Arial, sans-serif" 
+        font-size="7" font-weight="bold" fill="#2c3e50">ДИЕТОЛОГ</text>
+</svg> 
