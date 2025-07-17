@@ -29,6 +29,8 @@ services:
     command: python main.py
     env_file:
       - .env
+    environment:
+      - API_BASE_URL=http://api:8000
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
