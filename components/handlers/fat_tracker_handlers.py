@@ -17,9 +17,9 @@ from api.ai_api.generate_text import answer_to_text_prompt
 
 router = Router()
 
-@router.message(F.text == 'Трекинг жира')
+@router.message(F.text == 'Трекер жировой массы')
 async def fat_tracker_menu(message: Message):
-    """Главное меню трекинга жира"""
+    """Главное меню трекера жировой массы"""
     try:
         # Получаем последнее измерение пользователя
         async with async_session() as session:
@@ -33,7 +33,7 @@ async def fat_tracker_menu(message: Message):
         
         if last_measurement:
             text = (
-                f"🏃‍♀️ <b>Трекинг жировой массы</b>\n\n"
+                f"🏃‍♀️ <b>Трекер жировой массы</b>\n\n"
                 f"📊 <b>Последнее измерение:</b>\n"
                 f"• Дата: {last_measurement.date}\n"
                 f"• Процент жира: {last_measurement.body_fat_percent}% {FatPercentageCalculator.get_fat_category(last_measurement.body_fat_percent, last_measurement.gender)['emoji']}\n"
@@ -45,7 +45,7 @@ async def fat_tracker_menu(message: Message):
                 text += f"• Цель: {last_measurement.goal_fat_percent}%\n"
         else:
             text = (
-                f"🏃‍♀️ <b>Трекинг жировой массы</b>\n\n"
+                f"🏃‍♀️ <b>Трекер жировой массы</b>\n\n"
                 f"📈 <b>Отслеживайте процент жира в организме</b>\n\n"
                 f"🎯 <b>Возможности:</b>\n"
                 f"• Точный расчет по формуле Navy Method\n"
@@ -59,7 +59,7 @@ async def fat_tracker_menu(message: Message):
         
     except Exception as e:
         await message.answer(
-            f"❌ Ошибка загрузки меню трекинга: {e}\n"
+            f"❌ Ошибка загрузки меню трекера: {e}\n"
             f"Попробуйте позже.",
             reply_markup=back_kb
         )
@@ -79,17 +79,21 @@ async def start_new_measurement(callback: CallbackQuery, state: FSMContext):
     if not user or not user.gender:
         await callback.message.edit_text(
             "❌ <b>Ошибка!</b>\n\n"
-            "Для трекинга жира необходимо заполнить профиль (особенно пол).\n"
+            "Для трекера жировой массы необходимо заполнить профиль (особенно пол).\n"
             "Сначала создайте профиль через главное меню.",
             reply_markup=back_kb,
             parse_mode='HTML'
         )
         return
     
+    # Нормализуем пол из профиля
+    gender_normalized = 'male' if user.gender.lower() in ['м', 'мужской', 'male'] else 'female'
+    gender_display = 'Мужской' if gender_normalized == 'male' else 'Женский'
+    
     # Сохраняем данные пользователя в состоянии
     await state.update_data(
         user_id=callback.from_user.id,
-        gender=user.gender,
+        gender=gender_normalized,
         height=user.height,
         age=user.age
     )
@@ -98,7 +102,7 @@ async def start_new_measurement(callback: CallbackQuery, state: FSMContext):
     
     await callback.message.edit_text(
         f"📏 <b>Новое измерение жировой массы</b>\n\n"
-        f"👤 Пол: {'Мужской' if user.gender == 'male' else 'Женский'}\n\n"
+        f"👤 Пол: {gender_display}\n\n"
         f"📐 <b>Шаг 1/3:</b> Введите обхват талии в сантиметрах\n\n"
         f"💡 <b>Как измерить:</b>\n"
         f"• Встаньте прямо, дышите нормально\n"
@@ -233,7 +237,9 @@ async def process_goal(message: Message, state: FSMContext):
     
     if message.text != '/skip':
         try:
-            goal = float(message.text.replace(',', '.'))
+            # Убираем знак % если пользователь его ввел
+            goal_text = message.text.replace('%', '').replace(',', '.').strip()
+            goal = float(goal_text)
             if goal < 5 or goal > 50:
                 await message.answer(
                     "❌ Некорректное значение!\nЦель должна быть от 5 до 50%."
@@ -245,8 +251,59 @@ async def process_goal(message: Message, state: FSMContext):
             )
             return
     
-    # Получаем все данные и рассчитываем
+    # Получаем все данные 
     data = await state.get_data()
+    
+    # Проверяем, устанавливается ли только цель (без измерений)
+    if data.get('setting_goal_only'):
+        # Только устанавливаем цель без расчетов
+        if goal is None:
+            await message.answer(
+                "❌ Для установки цели нужно ввести число!",
+                reply_markup=back_kb
+            )
+            return
+            
+        # Обновляем цель в последнем измерении пользователя
+        async with async_session() as session:
+            result = await session.execute(
+                select(FatTracking)
+                .where(FatTracking.user_id == message.from_user.id)
+                .order_by(desc(FatTracking.created_at))
+                .limit(1)
+            )
+            last_measurement = result.scalar_one_or_none()
+            
+            if last_measurement:
+                last_measurement.goal_fat_percent = goal
+                await session.commit()
+                
+                diff = goal - last_measurement.body_fat_percent
+                if abs(diff) <= 1:
+                    status = "🎯 Цель достигнута!"
+                elif diff > 0:
+                    status = f"🎯 До цели: {diff:.1f}% жира"
+                else:
+                    status = f"🎯 Превышение цели на {abs(diff):.1f}%"
+                    
+                await message.answer(
+                    f"✅ <b>Цель установлена!</b>\n\n"
+                    f"🎯 Целевой процент жира: {goal}%\n"
+                    f"📊 Текущий: {last_measurement.body_fat_percent}%\n\n"
+                    f"{status}",
+                    reply_markup=fat_tracker_kb
+                )
+            else:
+                await message.answer(
+                    "❌ Сначала сделайте измерение жировой массы!\n"
+                    "Нажмите 'Новое измерение' для начала.",
+                    reply_markup=fat_tracker_kb
+                )
+        
+        await state.clear()
+        return
+    
+    # Обычный режим с измерениями
     waist_cm = data['waist_cm']
     hip_cm = data['hip_cm']
     neck_cm = data.get('neck_cm')
@@ -444,7 +501,10 @@ async def set_fat_goal(callback: CallbackQuery, state: FSMContext):
         )
         return
     
-    healthy_range = FatPercentageCalculator.get_healthy_range(user.gender, user.age)
+    # Нормализуем пол из профиля
+    gender_normalized = 'male' if user.gender.lower() in ['м', 'мужской', 'male'] else 'female'
+    
+    healthy_range = FatPercentageCalculator.get_healthy_range(gender_normalized, user.age)
     
     text = (
         f"🎯 <b>Установка цели по жиру</b>\n\n"
@@ -459,7 +519,7 @@ async def set_fat_goal(callback: CallbackQuery, state: FSMContext):
     text += "✏️ <b>Введите целевой процент жира:</b>"
     
     await state.set_state(FatTracker.goal)
-    await state.update_data(setting_goal_only=True, user_gender=user.gender)
+    await state.update_data(setting_goal_only=True, user_gender=gender_normalized)
     
     await callback.message.edit_text(text, reply_markup=back_kb, parse_mode='HTML')
 
