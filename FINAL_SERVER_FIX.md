@@ -12,7 +12,16 @@
 
 ### На сервере выполните ОДНУ команду:
 
+Пересборка 
+
+cd /opt/dieta
+git pull origin main
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+
 ```bash
+
 ssh root@5.129.198.80
 cd /opt/dieta
 curl -O https://raw.githubusercontent.com/GermannM3/dieta/main/server_complete_fix.sh

@@ -420,15 +420,19 @@ async def get_daily_stats(user_id: int = Query(...), days: int = Query(7)):
         logging.error(f"Ошибка при получении статистики: {e}")
         return {"daily_stats": []}
 
-@app.get("/api/search-food")
-async def search_food(query: str):
+@app.post("/api/search_food")
+async def search_food(data: dict):
     """Поиск продуктов для веб-приложения"""
     try:
+        query = data.get('query', '')
+        if not query:
+            return {"foods": []}
+            
         # Получаем данные о продукте
         nutrition_data = await nutrition_api.get_nutrition_data(query, 100)
         
         return {
-            "results": [
+            "foods": [
                 {
                     "name": nutrition_data['food_name'],
                     "name_en": nutrition_data['food_name_en'],
@@ -442,9 +446,9 @@ async def search_food(query: str):
         }
     except Exception as e:
         print(f"Ошибка поиска продукта: {e}")
-        return {"results": []}
+        return {"foods": []}
 
-@app.post("/api/calculate-calories")
+@app.post("/api/calculate_calories")
 async def calculate_calories(data: dict):
     """Вычисляет калории для продукта с заданным весом"""
     try:
@@ -455,12 +459,14 @@ async def calculate_calories(data: dict):
         nutrition_data = await nutrition_api.get_nutrition_data(food_name, weight_grams)
         
         return {
+            "nutrition": {
+                "calories": nutrition_data['calories'],
+                "protein": nutrition_data['protein'],
+                "fat": nutrition_data['fat'],
+                "carbs": nutrition_data['carbs']
+            },
             "food_name": nutrition_data['food_name'],
             "weight_grams": weight_grams,
-            "calories": nutrition_data['calories'],
-            "protein": nutrition_data['protein'],
-            "fat": nutrition_data['fat'],
-            "carbs": nutrition_data['carbs'],
             "source": nutrition_data['source']
         }
     except Exception as e:
