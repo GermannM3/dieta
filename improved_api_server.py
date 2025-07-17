@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, text
@@ -121,6 +122,10 @@ class PresetIn(BaseModel):
 class WaterIn(BaseModel):
     user_id: int
     amount_ml: int
+
+class MenuRequest(BaseModel):
+    user_id: int
+    target_calories: Optional[int] = None
 
 # Health check endpoint для Docker
 @app.get("/health")
