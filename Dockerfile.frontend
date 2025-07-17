@@ -1,16 +1,27 @@
 # Этап сборки
-FROM node:18-alpine AS builder
+FROM node:18-alpine as builder
 
 WORKDIR /app
 
 # Копируем package.json и package-lock.json
 COPY calorie-love-tracker/package*.json ./
 
-# Устанавливаем зависимости
+# Устанавливаем ВСЕ зависимости (включая devDependencies для сборки)
 RUN npm ci
 
 # Копируем весь код фронтенда
 COPY calorie-love-tracker/ .
+
+# Передаем аргументы сборки как переменные окружения
+ARG VITE_API_URL=http://5.129.198.80:8000
+ARG VITE_APP_TITLE="Твой Диетолог - Персональный ИИ-помощник"
+ARG VITE_APP_DESCRIPTION="Продвинутый телеграм-бот с личным диетологом"
+ARG VITE_TELEGRAM_BOT_USERNAME=@tvoy_diet_bot
+
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_APP_TITLE=$VITE_APP_TITLE
+ENV VITE_APP_DESCRIPTION=$VITE_APP_DESCRIPTION
+ENV VITE_TELEGRAM_BOT_USERNAME=$VITE_TELEGRAM_BOT_USERNAME
 
 # Собираем приложение
 RUN npm run build

@@ -39,15 +39,10 @@ services:
   # React Frontend
   frontend:
     build:
-      context: ./calorie-love-tracker
-      dockerfile: Dockerfile
-      args:
-        - VITE_API_URL=http://localhost:8000
-        - VITE_APP_TITLE=Твой Диетолог - Персональный ИИ-помощник
-        - VITE_APP_DESCRIPTION=Продвинутый телеграм-бот с личным диетологом
-        - VITE_TELEGRAM_BOT_USERNAME=@tvoy_diet_bot
+      context: .
+      dockerfile: Dockerfile.frontend
     ports:
-      - "3000:3000"
+      - "3000:80"
     restart: unless-stopped
     depends_on:
       - api
