@@ -19,18 +19,6 @@ from datetime import datetime, timedelta
 import pytz
 
 load_dotenv()
-
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    """Health check endpoint для Docker"""
-    try:
-        # Проверяем подключение к базе данных
-        async with async_session() as session:
-            result = await session.execute(text("SELECT 1"))
-            return {"status": "healthy", "database": "connected"}
-    except Exception as e:
-        return {"status": "unhealthy", "error": str(e)}
 # Отключаем CalorieNinjas API
 # CALORIE_NINJAS_API_KEY = os.getenv("CALORIE_NINJAS_API_KEY")
 # if not CALORIE_NINJAS_API_KEY:
@@ -52,6 +40,18 @@ app.add_middleware(
 # Инициализируем API
 gigachat_api = GigaChatAPI()
 nutrition_api = NutritionAPI()
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint для Docker"""
+    try:
+        # Проверяем подключение к базе данных
+        async with async_session() as session:
+            result = await session.execute(text("SELECT 1"))
+            return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
 
 # Создаем сессию после инициализации engine
 async_session = async_sessionmaker(engine, expire_on_commit=False)
