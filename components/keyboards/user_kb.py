@@ -5,7 +5,7 @@ main_menu_kb = ReplyKeyboardMarkup(
         [KeyboardButton(text='Профиль'), KeyboardButton(text='Добавить еду')],
         [KeyboardButton(text='История приёмов пищи'), KeyboardButton(text='Мои шаблоны')],
         [KeyboardButton(text='Трекер воды'), KeyboardButton(text='Трекер настроения')],
-        [KeyboardButton(text='Трекинг жира'), KeyboardButton(text='Баллы и прогресс')],
+        [KeyboardButton(text='Трекер жировой массы'), KeyboardButton(text='Баллы и прогресс')],
         [KeyboardButton(text='Сгенерировать меню'), KeyboardButton(text='Личный диетолог')],
         [KeyboardButton(text='Статистика'), KeyboardButton(text='Распознать еду на фото')],
     ],
@@ -38,6 +38,7 @@ start_kb = InlineKeyboardMarkup(
 add_food_kb = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text='🍽️ Выбрать из шаблонов', callback_data='food_templates')],
+        [InlineKeyboardButton(text='➕ Создать шаблон', callback_data='create_template_from_addmeal')],
         [InlineKeyboardButton(text='⬅️ Назад', callback_data='back')]
     ]
 )
@@ -59,5 +60,13 @@ fat_confirm_kb = InlineKeyboardMarkup(
         [InlineKeyboardButton(text='✅ Сохранить', callback_data='fat_save')],
         [InlineKeyboardButton(text='🔄 Повторить измерение', callback_data='fat_restart')],
         [InlineKeyboardButton(text='❌ Отмена', callback_data='back')]
+    ]
+)
+
+# Клавиатура для создания шаблонов (когда их нет)
+create_template_kb = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text='➕ Добавить шаблон', callback_data='create_template')],
+        [InlineKeyboardButton(text='⬅️ Назад', callback_data='back')]
     ]
 )
