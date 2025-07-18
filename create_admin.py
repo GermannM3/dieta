@@ -7,6 +7,7 @@ import asyncio
 import sys
 import os
 from dotenv import load_dotenv
+from sqlalchemy import text
 
 # Добавляем путь к модулям
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -29,7 +30,7 @@ async def create_admin():
         async with async_session() as session:
             # Проверяем, существует ли уже администратор
             result = await session.execute(
-                f"SELECT id FROM web_users WHERE email = '{admin_email}'"
+                text(f"SELECT id FROM web_users WHERE email = '{admin_email}'")
             )
             existing_user = result.fetchone()
             
@@ -38,20 +39,20 @@ async def create_admin():
                 
                 # Обновляем профиль администратора
                 profile_result = await session.execute(
-                    f"SELECT id FROM web_profiles WHERE user_id = {existing_user[0]}"
+                    text(f"SELECT id FROM web_profiles WHERE user_id = {existing_user[0]}")
                 )
                 existing_profile = profile_result.fetchone()
                 
                 if existing_profile:
                     # Обновляем профиль
                     await session.execute(
-                        f"UPDATE web_profiles SET is_premium = true WHERE user_id = {existing_user[0]}"
+                        text(f"UPDATE web_profiles SET is_premium = true WHERE user_id = {existing_user[0]}")
                     )
                     print("✅ Профиль администратора обновлен (is_premium = true)")
                 else:
                     # Создаем профиль
                     await session.execute(
-                        f"INSERT INTO web_profiles (user_id, name, is_premium) VALUES ({existing_user[0]}, '{admin_name}', true)"
+                        text(f"INSERT INTO web_profiles (user_id, name, is_premium) VALUES ({existing_user[0]}, '{admin_name}', true)")
                     )
                     print("✅ Профиль администратора создан")
                 

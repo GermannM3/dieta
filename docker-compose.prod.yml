@@ -7,8 +7,6 @@ services:
       context: .
       dockerfile: Dockerfile
     command: python improved_api_server.py
-    ports:
-      - "8000:8000"
     env_file:
       - .env
     volumes:
@@ -33,27 +31,26 @@ services:
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
-    # Убираем healthcheck для бота, так как он может мешать запуску
-    # healthcheck:
-    #   test: ["CMD", "ps", "aux", "|", "grep", "python", "|", "grep", "main.py"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 3
-    #   start_period: 60s
-    # Убираем зависимость от API, чтобы бот мог запуститься независимо
-    # depends_on:
-    #   api:
-    #     condition: service_healthy
 
   # React Frontend
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    ports:
-      - "80:80"
     restart: unless-stopped
     depends_on:
+      - api
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-simple.conf:/etc/nginx/conf.d/default.conf
+    restart: unless-stopped
+    depends_on:
+      - frontend
       - api
 
 volumes:
