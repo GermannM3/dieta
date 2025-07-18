@@ -19,7 +19,7 @@ log() {
 # Проверка root прав
 if [[ $EUID -ne 0 ]]; then
    echo "❌ Этот скрипт должен запускаться от root" 
-   exit 1
+    exit 1
 fi
 
 log "📦 Обновление системы..."
@@ -41,7 +41,7 @@ fi
 
 log "📂 Подготовка директории приложения..."
 mkdir -p $APP_DIR
-cd $APP_DIR
+    cd $APP_DIR
 
 # Остановка существующих контейнеров
 log "🛑 Остановка существующих сервисов..."
@@ -173,10 +173,10 @@ server {
     }
 }
 NGINX_EOF
-    
+
     # Активация сайта
     ln -sf /etc/nginx/sites-available/dieta /etc/nginx/sites-enabled/
-    rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-enabled/default
     
     # Перезапуск nginx
     nginx -t && systemctl restart nginx

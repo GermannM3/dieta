@@ -19,10 +19,34 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [showGuestMode, setShowGuestMode] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('checking'); // 'checking', 'connected', 'error'
 
   useEffect(() => {
+    // Проверяем подключение к Supabase
+    const checkConnection = async () => {
+      try {
+        const { data, error } = await supabase.from('profiles').select('count').limit(1);
+        if (error) throw error;
+        setConnectionStatus('connected');
+      } catch (error) {
+        console.error("Ошибка подключения к базе данных:", error);
+        setConnectionStatus('error');
+      }
+    };
+
+    checkConnection();
+
     // Получаем текущую сессию
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error("Ошибка получения сессии:", error);
+        toast({
+          title: "Проблема с подключением",
+          description: "Не удается подключиться к серверу аутентификации. Попробуйте позже.",
+          variant: "destructive",
+        });
+      }
+      
       setSession(session);
       if (session) {
         loadUserProfile(session.user.id);
@@ -35,6 +59,7 @@ const Index = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("Auth state changed:", _event, session);
       setSession(session);
       if (session) {
         loadUserProfile(session.user.id);
@@ -56,10 +81,18 @@ const Index = () => {
         .eq("user_id", userId)
         .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error && error.code !== "PGRST116") {
+        console.error("Ошибка загрузки профиля:", error);
+        throw error;
+      }
       setUser(data);
     } catch (error) {
       console.error("Error loading profile:", error);
+      toast({
+        title: "Ошибка загрузки профиля",
+        description: "Не удается загрузить данные профиля. Проверьте подключение к интернету.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -76,41 +109,64 @@ const Index = () => {
     }
   };
 
+  // В начале рендера, после проверки loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Загрузка...</p>
+          {connectionStatus === 'error' && (
+            <p className="text-destructive mt-2 text-sm">
+              ⚠️ Проблемы с подключением к базе данных
+            </p>
+          )}
         </div>
       </div>
     );
   }
 
+  // Если нет сессии, показываем главную страницу
   if (!session) {
     return (
-      <div className="min-h-screen">
-        
-        {/* Telegram Bot Link в правом верхнем углу */}
-        <div className="fixed top-4 right-4 z-50">
-          <a 
-            href="https://t.me/tvoy_diet_bot" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="group flex flex-col items-center bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-primary/20"
-          >
-            <img 
-              src="/kangaroo-icon.svg" 
-              alt="Telegram Bot" 
-              className="w-8 h-8 mb-1"
-            />
-            <span className="text-xs font-medium text-center text-primary group-hover:text-primary/80">
-              Наш ТГ-бот<br/>с ИИ-диетологом
-            </span>
-          </a>
-        </div>
-        
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-accent/5 to-info/5">
         <div className="container mx-auto px-4 py-8">
+          {/* Статус подключения */}
+          {connectionStatus === 'error' && (
+            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-center">
+              <p className="text-destructive text-sm">
+                ⚠️ Проблемы с подключением к серверу. Функции регистрации могут быть недоступны.
+              </p>
+            </div>
+          )}
+          
+          {connectionStatus === 'connected' && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-center">
+              <p className="text-green-700 text-sm">
+                ✅ Подключение к серверу установлено
+              </p>
+            </div>
+          )}
+          
+          {/* Telegram Bot Link в правом верхнем углу */}
+          <div className="fixed top-4 right-4 z-50">
+            <a 
+              href="https://t.me/tvoy_diet_bot" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="group flex flex-col items-center bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-primary/20"
+            >
+              <img 
+                src="/kangaroo-icon.svg" 
+                alt="Telegram Bot" 
+                className="w-8 h-8 mb-1"
+              />
+              <span className="text-xs font-medium text-center text-primary group-hover:text-primary/80">
+                Наш ТГ-бот<br/>с ИИ-диетологом
+              </span>
+            </a>
+          </div>
+          
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-info bg-clip-text text-transparent mb-4">
               🥗 Трекер Калорий
