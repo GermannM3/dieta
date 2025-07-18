@@ -131,28 +131,6 @@ class MenuRequest(BaseModel):
     user_id: int
     target_calories: Optional[int] = None
 
-# Health check endpoint для Docker
-@app.get("/health")
-async def health_check():
-    """Проверка состояния API сервера"""
-    try:
-        # Проверяем подключение к БД
-        async with async_session() as session:
-            result = await session.execute(text("SELECT 1"))
-            db_status = "ok" if result.scalar() == 1 else "error"
-            
-            return {
-            "status": "healthy",
-            "database": db_status,
-            "timestamp": datetime.now().isoformat()
-            }
-    except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
-
 # API endpoints
 @app.post("/api/meal")
 async def add_meal(meal: dict):
@@ -173,7 +151,7 @@ async def add_meal(meal: dict):
         
         # Создаем запись в базе данных
         async with async_session() as session:
-        new_meal = Meal(
+            new_meal = Meal(
                 user_id=user_id,
                 food_name=food_name,
                 food_name_en=food_name,  # Используем то же название
@@ -185,10 +163,10 @@ async def add_meal(meal: dict):
                 date=date,
                 time=time,
                 meal_type=meal_type
-        )
-        session.add(new_meal)
-        await session.commit()
-        
+            )
+            session.add(new_meal)
+            await session.commit()
+            
             # Обновляем счетчик пользователя
             user = await session.get(User, user_id)
             if user:
@@ -244,38 +222,38 @@ async def update_profile(tg_id: int, profile_data: dict):
 @app.get("/api/profile")
 async def get_profile(tg_id: int = Query(...)):
     try:
-    async with async_session() as session:
-        user = await session.get(User, tg_id)
-        if not user:
-            return {"profile": {}}
-        
-        profile = {
-            "name": user.name,
-            "age": user.age,
-            "gender": user.gender,
-            "weight": user.weight,
-            "height": user.height,
+        async with async_session() as session:
+            user = await session.get(User, tg_id)
+            if not user:
+                return {"profile": {}}
+            
+            profile = {
+                "name": user.name,
+                "age": user.age,
+                "gender": user.gender,
+                "weight": user.weight,
+                "height": user.height,
                 "activity_level": user.activity_level,
                 "water_ml": user.water_ml,
                 "score": user.score,
                 "streak_days": user.streak_days
-        }
-        
-        # Рассчитываем BMR и дневную норму калорий, если есть все данные
-        if user.age and user.weight and user.height and user.gender:
-            # Формула Миффлина-Сан Жеора
-            if user.gender == 'м':
-                bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age + 5
-            else:
-                bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age - 161
+            }
             
-            activity_multiplier = 1.2 + (user.activity_level - 1) * 0.3 if user.activity_level else 1.2
-            daily_calories = int(bmr * activity_multiplier)
+            # Рассчитываем BMR и дневную норму калорий, если есть все данные
+            if user.age and user.weight and user.height and user.gender:
+                # Формула Миффлина-Сан Жеора
+                if user.gender == 'м':
+                    bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age + 5
+                else:
+                    bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age - 161
+                
+                activity_multiplier = 1.2 + (user.activity_level - 1) * 0.3 if user.activity_level else 1.2
+                daily_calories = int(bmr * activity_multiplier)
+                
+                profile["bmr"] = int(bmr)
+                profile["daily_calories"] = daily_calories
             
-            profile["bmr"] = int(bmr)
-            profile["daily_calories"] = daily_calories
-        
-        return {"profile": profile}
+            return {"profile": profile}
     except Exception as e:
         logging.error(f"Ошибка при получении профиля: {e}")
         return {"profile": {}}
@@ -481,8 +459,8 @@ async def get_water(user_id: int = Query(...)):
     """Получение данных о потреблении воды"""
     async with async_session() as session:
         try:
-        user = await session.get(User, user_id)
-        if not user:
+            user = await session.get(User, user_id)
+            if not user:
                 return {"water_ml": 0}
             return {"water_ml": getattr(user, 'water_ml', 0) or 0}
         except Exception as e:
@@ -534,12 +512,37 @@ async def generate_menu(request: MenuRequest):
                 request.target_calories = 500  # Значение по умолчанию
         
         # Генерируем предложения блюд
-        menu_items = await generate_meal_suggestions_with_ai(
-            request.user_id, 
-            request.meal_type, 
-            request.target_calories, 
-            session
-        )
+        # menu_items = await generate_meal_suggestions_with_ai(
+        #     request.user_id, 
+        #     request.meal_type, 
+        #     request.target_calories, 
+        #     session
+        # )
+        
+        # Временная заглушка для генерации меню
+        menu_items = [
+            {
+                "name": "Овсянка с фруктами",
+                "calories": int(request.target_calories * 0.4),
+                "protein": 15,
+                "fat": 8,
+                "carbs": 45
+            },
+            {
+                "name": "Куриная грудка",
+                "calories": int(request.target_calories * 0.3),
+                "protein": 25,
+                "fat": 5,
+                "carbs": 0
+            },
+            {
+                "name": "Овощной салат",
+                "calories": int(request.target_calories * 0.3),
+                "protein": 5,
+                "fat": 2,
+                "carbs": 15
+            }
+        ]
         
         return {
             "status": "ok",
