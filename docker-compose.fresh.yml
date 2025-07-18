@@ -6,7 +6,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      no_cache: true
     command: python improved_api_server.py
     env_file:
       - .env
@@ -21,7 +20,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.bot
-      no_cache: true
     env_file:
       - .env
     environment:
@@ -37,7 +35,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-      no_cache: true
     restart: unless-stopped
     depends_on:
       - api
