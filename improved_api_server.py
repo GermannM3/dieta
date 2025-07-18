@@ -21,7 +21,7 @@ import pytz
 from api.auth_api import register_user, login_user, confirm_user, get_current_user, UserRegister, UserLogin, UserConfirm
 from database.crud import update_user_profile
 from database.init_database import WebUser, WebProfile
-from database.premium_checker import check_premium
+from components.payment_system.payment_operations import check_premium
 
 load_dotenv()
 # Отключаем CalorieNinjas API
