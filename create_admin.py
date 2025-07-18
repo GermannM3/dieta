@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from database.init_database import async_session, WebUser, WebProfile
-from api.auth_api import create_user_with_password
+from api.auth_api import register_user, UserRegister
 
 load_dotenv()
 
@@ -61,22 +61,22 @@ async def create_admin():
             # Создаем нового администратора
             print(f"📝 Создание администратора: {admin_email}")
             
-            # Создаем пользователя
-            user_data = {
-                "email": admin_email,
-                "password": admin_password,
-                "name": admin_name
-            }
+            # Создаем пользователя через функцию регистрации
+            user_data = UserRegister(
+                email=admin_email,
+                password=admin_password,
+                name=admin_name
+            )
             
-            # Используем функцию создания пользователя
-            user = await create_user_with_password(user_data)
+            # Регистрируем пользователя
+            auth_response = await register_user(user_data)
             
-            if user:
-                print(f"✅ Пользователь создан с ID: {user.id}")
+            if auth_response:
+                print(f"✅ Пользователь создан с ID: {auth_response.user.id}")
                 
                 # Создаем профиль администратора
                 profile = WebProfile(
-                    user_id=user.id,
+                    user_id=auth_response.user.id,
                     name=admin_name,
                     is_premium=True
                 )
@@ -88,6 +88,7 @@ async def create_admin():
                 print(f"  Email: {admin_email}")
                 print(f"  Пароль: {admin_password}")
                 print(f"  Премиум: активен")
+                print(f"  Сообщение: {auth_response.message}")
                 
             else:
                 print("❌ Ошибка создания пользователя")
@@ -103,18 +104,20 @@ async def test_admin_login():
     print("=" * 50)
     
     try:
-        from api.auth_api import authenticate_user
+        from api.auth_api import login_user, UserLogin
         
         admin_email = "germannm@vk.com"
         admin_password = "Germ@nnM3"
         
-        user = await authenticate_user(admin_email, admin_password)
+        login_data = UserLogin(email=admin_email, password=admin_password)
+        auth_response = await login_user(login_data)
         
-        if user:
+        if auth_response:
             print("✅ Вход администратора успешен")
-            print(f"  ID: {user.id}")
-            print(f"  Email: {user.email}")
-            print(f"  Подтвержден: {user.is_confirmed}")
+            print(f"  ID: {auth_response.user.id}")
+            print(f"  Email: {auth_response.user.email}")
+            print(f"  Подтвержден: {auth_response.user.is_confirmed}")
+            print(f"  Токен: {auth_response.token[:20]}...")
         else:
             print("❌ Ошибка входа администратора")
             
