@@ -53,100 +53,100 @@ async def add_user_if_not_exists(tg_id: int):
 @retry_db_connection()
 async def get_user_profile(tg_id: int):
     """Получает профиль пользователя"""
-        async with async_session() as session:
-            user = await session.get(User, tg_id)
-            if user:
-                return {
-                    'name': user.name,
-                    'age': user.age,
-                    'gender': user.gender,
-                    'weight': user.weight,
-                    'height': user.height,
-                    'activity_level': user.activity_level,
-                    'water_ml': user.water_ml,
-                    'score': user.score,
-                    'streak_days': user.streak_days
-                }
-        return None
+    async with async_session() as session:
+        user = await session.get(User, tg_id)
+        if user:
+            return {
+                'name': user.name,
+                'age': user.age,
+                'gender': user.gender,
+                'weight': user.weight,
+                'height': user.height,
+                'activity_level': user.activity_level,
+                'water_ml': user.water_ml,
+                'score': user.score,
+                'streak_days': user.streak_days
+            }
+    return None
 
 @retry_db_connection()
 async def update_user_profile(tg_id: int, profile_data: dict):
     """Обновляет профиль пользователя"""
-        async with async_session() as session:
-            user = await session.get(User, tg_id)
-            if user:
-                for key, value in profile_data.items():
-                    if hasattr(user, key) and value is not None:
-                        setattr(user, key, value)
-                await session.commit()
-                return True
-        return False
+    async with async_session() as session:
+        user = await session.get(User, tg_id)
+        if user:
+            for key, value in profile_data.items():
+                if hasattr(user, key) and value is not None:
+                    setattr(user, key, value)
+            await session.commit()
+            return True
+    return False
 
 @retry_db_connection()
 async def get_context(tg_id: int):
-        async with async_session() as session:
-            user = await session.get(User, tg_id)
-            return user.chat_context if user else None
+    async with async_session() as session:
+        user = await session.get(User, tg_id)
+        return user.chat_context if user else None
 
 @retry_db_connection()
 async def add_to_context(tg_id: int, message: str):
     """Добавляет сообщение в контекст пользователя"""
     async with async_session() as session:
         user = await session.get(User, tg_id)
-            if user:
-                context = user.chat_context or []
-                context.append(message)
-                # Ограничиваем контекст 50 сообщениями
-                if len(context) > 50:
-                    context = context[-50:]
-                user.chat_context = context
-                await session.commit()
+        if user:
+            context = user.chat_context or []
+            context.append(message)
+            # Ограничиваем контекст 50 сообщениями
+            if len(context) > 50:
+                context = context[-50:]
+            user.chat_context = context
+            await session.commit()
 
 @retry_db_connection()
 async def update_context(tg_id: int, context: list):
     async with async_session() as session:
         user = await session.get(User, tg_id)
-            if user:
-        context = context if len(context) <= 50 else context[2:]
-        user.chat_context = context
-        await session.commit()
+        if user:
+            context = context if len(context) <= 50 else context[2:]
+            user.chat_context = context
+            await session.commit()
 
 @retry_db_connection()
 async def reset_context(tg_id: int):
     async with async_session() as session:
         user = await session.get(User, tg_id)
-            if user:
-        user.chat_context = None
-        await session.commit()
+        if user:
+            user.chat_context = None
+            await session.commit()
 
 @retry_db_connection()
 async def save_fsm_state(tg_id: int, state: str, data: dict = None):
     """Сохраняет состояние FSM пользователя"""
-        async with async_session() as session:
-            user = await session.get(User, tg_id)
-            if user:
-                user.fsm_state = state
-                user.fsm_data = data or {}
-                await session.commit()
+    async with async_session() as session:
+        user = await session.get(User, tg_id)
+        if user:
+            user.fsm_state = state
+            user.fsm_data = data or {}
+            await session.commit()
 
 @retry_db_connection()
 async def get_fsm_state(tg_id: int):
     """Получает состояние FSM пользователя"""
-        async with async_session() as session:
-            user = await session.get(User, tg_id)
-            if user:
-                return user.fsm_state, user.fsm_data or {}
-        return None, {}
+    async with async_session() as session:
+        user = await session.get(User, tg_id)
+        if user:
+            return user.fsm_state, user.fsm_data or {}
+    return None, {}
 
 @retry_db_connection()
 async def clear_fsm_state(tg_id: int):
     """Очищает состояние FSM пользователя"""
-        async with async_session() as session:
-            user = await session.get(User, tg_id)
-            if user:
-                user.fsm_state = None
-                user.fsm_data = None
-                await session.commit()
+    async with async_session() as session:
+        user = await session.get(User, tg_id)
+        if user:
+            user.fsm_state = None
+            user.fsm_data = None
+            await session.commit()
 
 @retry_db_connection()
 async def amount_of_users():
@@ -159,4 +159,4 @@ async def get_all_users():
     async with async_session() as session:
         users = await session.execute(select(User.tg_id))
         users = users.scalars().all()
-        return users
+        return users 
