@@ -25,8 +25,7 @@ services:
   bot:
     build:
       context: .
-      dockerfile: Dockerfile
-    command: python main.py
+      dockerfile: Dockerfile.bot
     env_file:
       - .env
     environment:
@@ -34,6 +33,12 @@ services:
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ps", "aux", "|", "grep", "python", "|", "grep", "main.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     depends_on:
       api:
         condition: service_healthy
