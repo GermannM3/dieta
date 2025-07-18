@@ -28,9 +28,10 @@ docker system prune -a -f --volumes
 echo "📥 Получение последних изменений..."
 git pull
 
-# Запустить с нуля
+# Запустить с нуля (без кэша)
 echo "🏗️ Сборка и запуск с нуля..."
-docker-compose -f docker-compose.fresh.yml up --build -d
+docker-compose -f docker-compose.fresh.yml build --no-cache
+docker-compose -f docker-compose.fresh.yml up -d
 
 # Проверить статус
 echo "📊 Статус контейнеров:"
