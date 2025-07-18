@@ -131,9 +131,9 @@ class ServiceManager:
                 stdout, stderr = process.communicate()
                 if stderr:
                     logging.error(f"API сервер упал сразу после запуска: {stderr}")
-                return False
-            
-            return True
+        return False
+    
+    return True
         except Exception as e:
             logging.error(f"Ошибка запуска API сервера: {e}")
             return False
@@ -267,7 +267,7 @@ class ServiceManager:
             except KeyboardInterrupt:
                 logging.info("Получен сигнал остановки")
                 self.running = False
-            except Exception as e:
+    except Exception as e:
                 logging.error(f"Ошибка в основном цикле: {e}")
                 time.sleep(5)
         

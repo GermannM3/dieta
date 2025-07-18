@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncAttrs, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
-from sqlalchemy import BigInteger, JSON, Float, String, Integer, ForeignKey, Column, DateTime, text
+from sqlalchemy import BigInteger, JSON, Float, String, Integer, ForeignKey, Column, DateTime, text, Boolean
 from dotenv import load_dotenv
 from sqlalchemy.orm import relationship
 import os
@@ -103,6 +103,72 @@ class FoodNutrient(Base):
     fdc_id = mapped_column(BigInteger)
     nutrient_id = mapped_column(BigInteger)
     amount = mapped_column(Float)
+
+class WebUser(Base):
+    """Модель пользователей веб-приложения (замена Supabase)"""
+    __tablename__ = 'web_users'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    name = Column(String(100))
+    is_confirmed = Column(Boolean, default=False)
+    confirmation_code = Column(String(10))
+    reset_code = Column(String(10))
+    reset_code_expires = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class WebProfile(Base):
+    """Профили для веб-пользователей (замена Supabase profiles)"""
+    __tablename__ = 'web_profiles'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('web_users.id'), nullable=False)
+    name = Column(String(100))
+    gender = Column(String(10))  # 'male', 'female'
+    age = Column(Integer)
+    weight = Column(Float)
+    height = Column(Float)
+    activity_level = Column(Float)
+    daily_target = Column(Float)
+    water_target = Column(Integer, default=2000)
+    steps_target = Column(Integer, default=10000)
+    mood = Column(String(20))  # 'excellent', 'good', 'okay', 'bad', 'terrible'
+    water_ml = Column(Integer, default=0)
+    streak_days = Column(Integer, default=0)
+    score = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class WebMeal(Base):
+    """Приемы пищи для веб-пользователей (замена Supabase meals)"""
+    __tablename__ = 'web_meals'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('web_users.id'), nullable=False)
+    date = Column(String(10), nullable=False)  # YYYY-MM-DD
+    time = Column(String(8))  # HH:MM:SS
+    food_name = Column(String(200), nullable=False)
+    weight_grams = Column(Float, nullable=False)
+    calories = Column(Float, nullable=False)
+    protein = Column(Float, default=0)
+    fat = Column(Float, default=0)
+    carbs = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class WebPreset(Base):
+    """Шаблоны питания для веб-пользователей (замена Supabase presets)"""
+    __tablename__ = 'web_presets'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('web_users.id'), nullable=False)
+    name = Column(String(100), nullable=False)
+    meal_type = Column(String(20))  # 'breakfast', 'lunch', 'dinner', 'snack'
+    food_items = Column(JSON)  # Список продуктов
+    total_calories = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 load_dotenv()
 

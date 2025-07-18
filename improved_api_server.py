@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -18,6 +18,7 @@ from api.ai_api.gigachat_api import GigaChatAPI, generate_text_gigachat
 from api.ai_api.nutrition_api import NutritionAPI
 from datetime import datetime, timedelta
 import pytz
+from api.auth_api import register_user, login_user, confirm_user, get_current_user, UserRegister, UserLogin, UserConfirm
 
 load_dotenv()
 # Отключаем CalorieNinjas API
@@ -136,12 +137,12 @@ async def health_check():
         async with async_session() as session:
             result = await session.execute(text("SELECT 1"))
             db_status = "ok" if result.scalar() == 1 else "error"
-        
-        return {
+            
+            return {
             "status": "healthy",
             "database": db_status,
             "timestamp": datetime.now().isoformat()
-        }
+            }
     except Exception as e:
         return {
             "status": "unhealthy",
@@ -169,7 +170,7 @@ async def add_meal(meal: dict):
         
         # Создаем запись в базе данных
         async with async_session() as session:
-            new_meal = Meal(
+        new_meal = Meal(
                 user_id=user_id,
                 food_name=food_name,
                 food_name_en=food_name,  # Используем то же название
@@ -181,10 +182,10 @@ async def add_meal(meal: dict):
                 date=date,
                 time=time,
                 meal_type=meal_type
-            )
-            session.add(new_meal)
-            await session.commit()
-            
+        )
+        session.add(new_meal)
+        await session.commit()
+        
             # Обновляем счетчик пользователя
             user = await session.get(User, user_id)
             if user:
@@ -241,38 +242,38 @@ async def update_profile(tg_id: int, profile_data: dict):
 @app.get("/api/profile")
 async def get_profile(tg_id: int = Query(...)):
     try:
-        async with async_session() as session:
-            user = await session.get(User, tg_id)
-            if not user:
-                return {"profile": {}}
-            
-            profile = {
-                "name": user.name,
-                "age": user.age,
-                "gender": user.gender,
-                "weight": user.weight,
-                "height": user.height,
+    async with async_session() as session:
+        user = await session.get(User, tg_id)
+        if not user:
+            return {"profile": {}}
+        
+        profile = {
+            "name": user.name,
+            "age": user.age,
+            "gender": user.gender,
+            "weight": user.weight,
+            "height": user.height,
                 "activity_level": user.activity_level,
                 "water_ml": user.water_ml,
                 "score": user.score,
                 "streak_days": user.streak_days
-            }
+        }
+        
+        # Рассчитываем BMR и дневную норму калорий, если есть все данные
+        if user.age and user.weight and user.height and user.gender:
+            # Формула Миффлина-Сан Жеора
+            if user.gender == 'м':
+                bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age + 5
+            else:
+                bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age - 161
             
-            # Рассчитываем BMR и дневную норму калорий, если есть все данные
-            if user.age and user.weight and user.height and user.gender:
-                # Формула Миффлина-Сан Жеора
-                if user.gender == 'м':
-                    bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age + 5
-                else:
-                    bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age - 161
-                
-                activity_multiplier = 1.2 + (user.activity_level - 1) * 0.3 if user.activity_level else 1.2
-                daily_calories = int(bmr * activity_multiplier)
-                
-                profile["bmr"] = int(bmr)
-                profile["daily_calories"] = daily_calories
+            activity_multiplier = 1.2 + (user.activity_level - 1) * 0.3 if user.activity_level else 1.2
+            daily_calories = int(bmr * activity_multiplier)
             
-            return {"profile": profile}
+            profile["bmr"] = int(bmr)
+            profile["daily_calories"] = daily_calories
+        
+        return {"profile": profile}
     except Exception as e:
         logging.error(f"Ошибка при получении профиля: {e}")
         return {"profile": {}}
@@ -478,8 +479,8 @@ async def get_water(user_id: int = Query(...)):
     """Получение данных о потреблении воды"""
     async with async_session() as session:
         try:
-            user = await session.get(User, user_id)
-            if not user:
+        user = await session.get(User, user_id)
+        if not user:
                 return {"water_ml": 0}
             return {"water_ml": getattr(user, 'water_ml', 0) or 0}
         except Exception as e:
@@ -549,6 +550,74 @@ async def generate_menu(request: MenuRequest):
 @app.get("/")
 async def root():
     return {"message": "Диетолог API работает!", "version": "1.0.0"}
+
+# Добавляем эндпоинты аутентификации
+@app.post("/api/auth/register")
+async def auth_register(user_data: UserRegister):
+    """Регистрация нового пользователя"""
+    try:
+        result = await register_user(user_data)
+        return result
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Ошибка регистрации: {e}")
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+
+@app.post("/api/auth/login")
+async def auth_login(login_data: UserLogin):
+    """Вход пользователя"""
+    try:
+        result = await login_user(login_data)
+        return result
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Ошибка входа: {e}")
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+
+@app.post("/api/auth/confirm")
+async def auth_confirm(confirmation_data: UserConfirm):
+    """Подтверждение email"""
+    try:
+        result = await confirm_user(confirmation_data)
+        return result
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Ошибка подтверждения: {e}")
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+
+@app.get("/api/auth/me")
+async def auth_me(authorization: str = Header(None)):
+    """Получение информации о текущем пользователе"""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Токен не предоставлен")
+    
+    token = authorization.replace("Bearer ", "")
+    try:
+        user = await get_current_user(token)
+        return {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "is_confirmed": user.is_confirmed,
+            "created_at": user.created_at
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Ошибка получения пользователя: {e}")
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+
+@app.get("/api/smtp/config")
+async def get_smtp_config():
+    """Получение примеров конфигурации SMTP"""
+    from api.email_service import EmailService
+    return {
+        "is_configured": EmailService().is_configured,
+        "examples": EmailService.get_smtp_config_examples()
+    }
 
 if __name__ == "__main__":
     import uvicorn

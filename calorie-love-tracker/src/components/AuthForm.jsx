@@ -17,28 +17,121 @@ export const AuthForm = ({ onAuthSuccess }) => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
+        
+        console.log("Успешный вход:", data);
         toast({ title: "Добро пожаловать!" });
+        onAuthSuccess();
       } else {
-        const { error } = await supabase.auth.signUp({
+        // Регистрация БЕЗ подтверждения email
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`
+            emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              email_confirm: false // Отключаем подтверждение
+            }
           }
         });
+        
         if (error) throw error;
-        toast({ title: "Проверьте email для подтверждения регистрации" });
+        
+        console.log("Результат регистрации:", data);
+        
+        // Проверяем, нужно ли подтверждение
+        if (data.user && !data.session) {
+          toast({ 
+            title: "Проверьте email", 
+            description: "Мы отправили письмо с подтверждением. Проверьте папку спам.",
+            variant: "default"
+          });
+        } else if (data.session) {
+          // Если сессия создана сразу - регистрация прошла успешно
+          toast({ title: "Регистрация успешна! Добро пожаловать!" });
+          onAuthSuccess();
+        } else {
+          // Другие случаи
+          toast({ 
+            title: "Регистрация отправлена", 
+            description: "Проверьте email для завершения регистрации"
+          });
+        }
       }
-      onAuthSuccess();
     } catch (error) {
+      console.error("Ошибка аутентификации:", error);
+      
+      let errorMessage = error.message;
+      
+      // Переводим основные ошибки на русский
+      if (error.message.includes("Invalid login credentials")) {
+        errorMessage = "Неверный email или пароль";
+      } else if (error.message.includes("User already registered")) {
+        errorMessage = "Пользователь с таким email уже зарегистрирован";
+      } else if (error.message.includes("Password should be at least")) {
+        errorMessage = "Пароль должен содержать минимум 6 символов";
+      } else if (error.message.includes("Unable to validate email address")) {
+        errorMessage = "Некорректный формат email";
+      } else if (error.message.includes("Email not confirmed")) {
+        errorMessage = "Email не подтвержден. Проверьте почту и нажмите на ссылку подтверждения.";
+      }
+      
       toast({
         title: "Ошибка",
-        description: error.message,
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    try {
+      // Вход под демо-аккаунтом
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: "demo@example.com",
+        password: "demo123456",
+      });
+      
+      if (error) {
+        // Если демо-аккаунт не существует, создаем его
+        if (error.message.includes("Invalid login credentials")) {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: "demo@example.com",
+            password: "demo123456",
+            options: {
+              data: {
+                email_confirm: false
+              }
+            }
+          });
+          
+          if (signUpError) throw signUpError;
+          
+          if (signUpData.session) {
+            toast({ title: "Демо-аккаунт создан! Добро пожаловать!" });
+            onAuthSuccess();
+          } else {
+            throw new Error("Не удалось создать демо-аккаунт");
+          }
+        } else {
+          throw error;
+        }
+      } else {
+        toast({ title: "Вход в демо-режиме успешен!" });
+        onAuthSuccess();
+      }
+    } catch (error) {
+      console.error("Ошибка демо-входа:", error);
+      toast({
+        title: "Ошибка демо-входа",
+        description: "Попробуйте зарегистрироваться вручную",
         variant: "destructive",
       });
     } finally {
@@ -85,6 +178,19 @@ export const AuthForm = ({ onAuthSuccess }) => {
               {loading ? "Загрузка..." : (isLogin ? "Войти" : "Зарегистрироваться")}
             </Button>
           </form>
+          
+          {/* Кнопка демо-входа */}
+          <div className="mt-4">
+            <Button 
+              onClick={handleDemoLogin}
+              variant="outline"
+              className="w-full"
+              disabled={loading}
+            >
+              🎭 Демо-вход (без регистрации)
+            </Button>
+          </div>
+          
           <div className="mt-4 text-center">
             <button
               type="button"
