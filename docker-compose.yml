@@ -33,15 +33,17 @@ services:
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "ps", "aux", "|", "grep", "python", "|", "grep", "main.py"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    depends_on:
-      api:
-        condition: service_healthy
+    # Убираем healthcheck для бота, так как он может мешать запуску
+    # healthcheck:
+    #   test: ["CMD", "ps", "aux", "|", "grep", "python", "|", "grep", "main.py"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 60s
+    # Убираем зависимость от API, чтобы бот мог запуститься независимо
+    # depends_on:
+    #   api:
+    #     condition: service_healthy
 
   # React Frontend
   frontend:
