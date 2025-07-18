@@ -36,7 +36,7 @@ class NutritionAPI:
             Отвечай только JSON, без дополнительного текста.
             """
             
-            response = await self.gigachat.generate_text(prompt)
+            response = await self.gigachat.simple_completion(prompt)
             
             # Пытаемся извлечь JSON из ответа
             import json
@@ -146,7 +146,7 @@ class NutritionAPI:
             
             # Используем GigaChat для перевода
             prompt = f"Переведи на английский язык название продукта: {text}. Ответь только переводом, без дополнительного текста."
-            translation = await self.gigachat.generate_text(prompt)
+            translation = await self.gigachat.simple_completion(prompt)
             
             # Очищаем перевод от лишнего текста
             translation = translation.strip().lower()
