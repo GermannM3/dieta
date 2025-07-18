@@ -117,7 +117,7 @@ async def main():
         logging.info("✅ База данных готова")
         
         # Создание диспетчера
-    dp = Dispatcher()
+        dp = Dispatcher()
         dp.include_routers(admin_router, payment_router, fat_tracker_router, user_router)
         logging.info("✅ Роутеры подключены")
         
@@ -127,7 +127,7 @@ async def main():
         logging.info(f"✅ Подключен как @{bot_info.username} ({bot_info.full_name})")
         
         # Очистка webhook
-    await bot.delete_webhook(drop_pending_updates=True)
+        await bot.delete_webhook(drop_pending_updates=True)
         logging.info("✅ Webhook очищен")
         
         # Создание системы keep-alive
