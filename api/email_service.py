@@ -1,6 +1,6 @@
 import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import os
 from dotenv import load_dotenv
 import logging
@@ -35,13 +35,13 @@ class EmailService:
         
         try:
             # Создаем сообщение
-            msg = MimeMultipart()
+            msg = MIMEMultipart()
             msg['From'] = self.from_email
             msg['To'] = to_email
             msg['Subject'] = subject
             
             # Добавляем текст
-            msg.attach(MimeText(body, 'html' if is_html else 'plain', 'utf-8'))
+            msg.attach(MIMEText(body, 'html' if is_html else 'plain', 'utf-8'))
             
             # Определяем тип подключения по порту
             if self.smtp_port == 465:
