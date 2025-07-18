@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,49 +16,64 @@ export const AuthForm = ({ onAuthSuccess }) => {
 
     try {
       if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        
-        console.log("Успешный вход:", data);
-        toast({ title: "Добро пожаловать!" });
-        onAuthSuccess();
-      } else {
-        // Регистрация БЕЗ подтверждения email
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              email_confirm: false // Отключаем подтверждение
-            }
-          }
+        // Вход через наш API
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email,
+            password
+          })
         });
         
-        if (error) throw error;
-        
-        console.log("Результат регистрации:", data);
-        
-        // Проверяем, нужно ли подтверждение
-        if (data.user && !data.session) {
-          toast({ 
-            title: "Проверьте email", 
-            description: "Мы отправили письмо с подтверждением. Проверьте папку спам.",
-            variant: "default"
-          });
-        } else if (data.session) {
-          // Если сессия создана сразу - регистрация прошла успешно
-          toast({ title: "Регистрация успешна! Добро пожаловать!" });
+        if (response.ok) {
+          const data = await response.json();
+          // Сохраняем токен в localStorage
+          localStorage.setItem('authToken', data.access_token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          console.log("Успешный вход:", data);
+          toast({ title: "Добро пожаловать!" });
           onAuthSuccess();
         } else {
-          // Другие случаи
-          toast({ 
-            title: "Регистрация отправлена", 
-            description: "Проверьте email для завершения регистрации"
-          });
+          const errorData = await response.json();
+          throw new Error(errorData.detail || "Ошибка входа");
+        }
+      } else {
+        // Регистрация через наш API
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email,
+            password,
+            name: email.split('@')[0] // Используем часть email как имя
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Результат регистрации:", data);
+          
+          if (data.requires_confirmation) {
+            toast({ 
+              title: "Проверьте email", 
+              description: "Мы отправили письмо с подтверждением. Проверьте папку спам.",
+              variant: "default"
+            });
+          } else {
+            // Если подтверждение не требуется
+            localStorage.setItem('authToken', data.access_token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            toast({ title: "Регистрация успешна! Добро пожаловать!" });
+            onAuthSuccess();
+          }
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || "Ошибка регистрации");
         }
       }
     } catch (error) {
@@ -68,15 +82,15 @@ export const AuthForm = ({ onAuthSuccess }) => {
       let errorMessage = error.message;
       
       // Переводим основные ошибки на русский
-      if (error.message.includes("Invalid login credentials")) {
+      if (error.message.includes("Invalid login credentials") || error.message.includes("Неверный email или пароль")) {
         errorMessage = "Неверный email или пароль";
-      } else if (error.message.includes("User already registered")) {
+      } else if (error.message.includes("User already registered") || error.message.includes("уже зарегистрирован")) {
         errorMessage = "Пользователь с таким email уже зарегистрирован";
-      } else if (error.message.includes("Password should be at least")) {
+      } else if (error.message.includes("Password should be at least") || error.message.includes("минимум")) {
         errorMessage = "Пароль должен содержать минимум 6 символов";
-      } else if (error.message.includes("Unable to validate email address")) {
+      } else if (error.message.includes("Unable to validate email address") || error.message.includes("формат email")) {
         errorMessage = "Некорректный формат email";
-      } else if (error.message.includes("Email not confirmed")) {
+      } else if (error.message.includes("Email not confirmed") || error.message.includes("не подтвержден")) {
         errorMessage = "Email не подтвержден. Проверьте почту и нажмите на ссылку подтверждения.";
       }
       
@@ -93,39 +107,53 @@ export const AuthForm = ({ onAuthSuccess }) => {
   const handleDemoLogin = async () => {
     setLoading(true);
     try {
-      // Вход под демо-аккаунтом
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: "demo@example.com",
-        password: "demo123456",
+      // Вход под демо-аккаунтом через наш API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: "demo@example.com",
+          password: "demo123456"
+        })
       });
       
-      if (error) {
+      if (response.ok) {
+        const data = await response.json();
+        // Сохраняем токен в localStorage
+        localStorage.setItem('authToken', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        toast({ title: "Вход в демо-режиме успешен!" });
+        onAuthSuccess();
+      } else {
         // Если демо-аккаунт не существует, создаем его
-        if (error.message.includes("Invalid login credentials")) {
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email: "demo@example.com",
-            password: "demo123456",
-            options: {
-              data: {
-                email_confirm: false
-              }
-            }
+        if (response.status === 401) {
+          const registerResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: "demo@example.com",
+              password: "demo123456",
+              name: "Демо Пользователь"
+            })
           });
           
-          if (signUpError) throw signUpError;
-          
-          if (signUpData.session) {
+          if (registerResponse.ok) {
+            const registerData = await registerResponse.json();
+            // Сохраняем токен в localStorage
+            localStorage.setItem('authToken', registerData.access_token);
+            localStorage.setItem('user', JSON.stringify(registerData.user));
             toast({ title: "Демо-аккаунт создан! Добро пожаловать!" });
             onAuthSuccess();
           } else {
             throw new Error("Не удалось создать демо-аккаунт");
           }
         } else {
-          throw error;
+          throw new Error("Ошибка входа");
         }
-      } else {
-        toast({ title: "Вход в демо-режиме успешен!" });
-        onAuthSuccess();
       }
     } catch (error) {
       console.error("Ошибка демо-входа:", error);
