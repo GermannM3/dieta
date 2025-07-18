@@ -400,6 +400,19 @@ async def save_measurement(callback: CallbackQuery, state: FSMContext):
                     user.goal_fat_percent = data['goal_fat_percent']
             
             await session.commit()
+            
+            # Также отправляем данные в API для синхронизации
+            try:
+                import requests
+                api_url = os.getenv('API_BASE_URL', 'http://127.0.0.1:8000')
+                fat_data = {
+                    'user_id': data['user_id'],
+                    'fat_percent': result['fat_percent'],
+                    'goal_fat_percent': data.get('goal_fat_percent')
+                }
+                requests.post(f'{api_url}/api/fat-data', json=fat_data, timeout=5)
+            except:
+                pass  # Если API недоступен, продолжаем работу
         
         await state.clear()
         

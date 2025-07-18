@@ -127,6 +127,11 @@ class WaterIn(BaseModel):
     user_id: int
     amount_ml: int
 
+class FatDataIn(BaseModel):
+    user_id: int
+    fat_percent: float
+    goal_fat_percent: Optional[float] = None
+
 class MenuRequest(BaseModel):
     user_id: int
     target_calories: Optional[int] = None
@@ -479,6 +484,30 @@ async def add_water(water: WaterIn):
         user.water_ml = current_water + water.amount_ml
         await session.commit()
         return {"status": "ok", "total_water": user.water_ml}
+
+@app.post("/api/fat-data")
+async def save_fat_data(fat_data: FatDataIn):
+    """Сохранение данных о жировой массе"""
+    try:
+        async with async_session() as session:
+            user = await session.get(User, fat_data.user_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="Пользователь не найден")
+            
+            user.body_fat_percent = fat_data.fat_percent
+            if fat_data.goal_fat_percent:
+                user.goal_fat_percent = fat_data.goal_fat_percent
+            
+            await session.commit()
+            
+            return {
+                "status": "ok",
+                "body_fat_percent": user.body_fat_percent,
+                "goal_fat_percent": user.goal_fat_percent
+            }
+    except Exception as e:
+        logging.error(f"Ошибка сохранения данных о жире: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения данных: {str(e)}")
 
 @app.post("/api/generate-menu")
 async def generate_menu(request: MenuRequest):
