@@ -391,6 +391,14 @@ async def save_measurement(callback: CallbackQuery, state: FSMContext):
                 date=date.today().strftime('%Y-%m-%d')
             )
             session.add(fat_record)
+            
+            # Синхронизируем данные с профилем пользователя
+            user = await session.get(User, data['user_id'])
+            if user:
+                user.body_fat_percent = result['fat_percent']
+                if data.get('goal_fat_percent'):
+                    user.goal_fat_percent = data['goal_fat_percent']
+            
             await session.commit()
         
         await state.clear()

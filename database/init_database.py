@@ -27,6 +27,11 @@ class User(Base):
     # Поля для баллов и стрика
     score: Mapped[int] = mapped_column(Integer, nullable=True, default=0)
     streak_days: Mapped[int] = mapped_column(Integer, nullable=True, default=0)
+    # Поля для жировой массы (синхронизация с FatTracking)
+    body_fat_percent: Mapped[float] = mapped_column(Float, nullable=True)  # Текущий процент жира
+    goal_fat_percent: Mapped[float] = mapped_column(Float, nullable=True)  # Целевой процент жира
+    # Поле для премиум-подписки
+    is_premium: Mapped[bool] = mapped_column(Boolean, nullable=True, default=False)
     # Поле для сохранения состояния FSM
     fsm_state: Mapped[str] = mapped_column(String, nullable=True)
     fsm_data: Mapped[dict] = mapped_column(JSON, nullable=True)
@@ -138,6 +143,7 @@ class WebProfile(Base):
     water_ml = Column(Integer, default=0)
     streak_days = Column(Integer, default=0)
     score = Column(Integer, default=0)
+    is_premium = Column(Boolean, default=False)  # Поле для премиум-подписки
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

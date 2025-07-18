@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Header
+from fastapi import FastAPI, HTTPException, Query, Header, Depends
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -19,6 +19,9 @@ from api.ai_api.nutrition_api import NutritionAPI
 from datetime import datetime, timedelta
 import pytz
 from api.auth_api import register_user, login_user, confirm_user, get_current_user, UserRegister, UserLogin, UserConfirm
+from database.crud import update_user_profile
+from database.init_database import WebUser, WebProfile
+from database.premium_checker import check_premium
 
 load_dotenv()
 # Отключаем CalorieNinjas API
@@ -229,7 +232,6 @@ async def save_profile(profile: ProfileIn):
 async def update_profile(tg_id: int, profile_data: dict):
     """Обновление отдельных полей профиля"""
     try:
-        from database.crud import update_user_profile
         success = await update_user_profile(tg_id, profile_data)
         if success:
             return {"status": "ok"}
@@ -618,6 +620,106 @@ async def get_smtp_config():
         "is_configured": EmailService().is_configured,
         "examples": EmailService.get_smtp_config_examples()
     }
+
+# ===== АДМИН ПАНЕЛЬ API =====
+
+@app.get("/api/admin/web-users")
+async def get_web_users(current_user: dict = Depends(get_current_user)):
+    """Получение списка веб-пользователей (только для админа)"""
+    if current_user.get('email') != 'germannm@vk.com':
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
+    async with async_session() as session:
+        result = await session.execute(
+            select(WebUser, WebProfile)
+            .outerjoin(WebProfile, WebUser.id == WebProfile.user_id)
+        )
+        users_data = result.fetchall()
+        
+        users = []
+        for user, profile in users_data:
+            users.append({
+                'id': user.id,
+                'email': user.email,
+                'name': profile.name if profile else None,
+                'is_confirmed': user.is_confirmed,
+                'is_premium': getattr(profile, 'is_premium', False) if profile else False,
+                'created_at': user.created_at.isoformat() if user.created_at else None,
+                'score': profile.score if profile else 0,
+                'streak_days': profile.streak_days if profile else 0
+            })
+        
+        return {"users": users}
+
+@app.get("/api/admin/telegram-users")
+async def get_telegram_users(current_user: dict = Depends(get_current_user)):
+    """Получение списка телеграм-пользователей (только для админа)"""
+    if current_user.get('email') != 'germannm@vk.com':
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
+    async with async_session() as session:
+        result = await session.execute(select(User))
+        users = result.scalars().all()
+        
+        users_data = []
+        for user in users:
+            users_data.append({
+                'tg_id': user.tg_id,
+                'name': user.name,
+                'is_premium': check_premium(user.tg_id),
+                'score': user.score or 0,
+                'streak_days': user.streak_days or 0,
+                'water_ml': user.water_ml or 0,
+                'body_fat_percent': user.body_fat_percent,
+                'goal_fat_percent': user.goal_fat_percent
+            })
+        
+        return {"users": users_data}
+
+@app.post("/api/admin/toggle-premium")
+async def toggle_premium(
+    data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Переключение премиум-статуса пользователя (только для админа)"""
+    if current_user.get('email') != 'germannm@vk.com':
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
+    user_id = data.get('user_id')
+    user_type = data.get('user_type')  # 'web' или 'telegram'
+    premium = data.get('premium', False)
+    
+    if not user_id or not user_type:
+        raise HTTPException(status_code=400, detail="Неверные параметры")
+    
+    async with async_session() as session:
+        if user_type == 'web':
+            # Для веб-пользователей обновляем профиль
+            result = await session.execute(
+                select(WebProfile).where(WebProfile.user_id == user_id)
+            )
+            profile = result.scalar_one_or_none()
+            
+            if not profile:
+                # Создаем профиль если не существует
+                profile = WebProfile(user_id=user_id, is_premium=premium)
+                session.add(profile)
+            else:
+                profile.is_premium = premium
+            
+            await session.commit()
+            
+        elif user_type == 'telegram':
+            # Для телеграм-пользователей используем функцию check_premium
+            # Здесь нужно добавить поле is_premium в модель User или создать отдельную таблицу
+            # Пока используем существующую логику
+            user = await session.get(User, user_id)
+            if user:
+                # Добавляем поле is_premium в модель User
+                user.is_premium = premium
+                await session.commit()
+        
+        return {"success": True, "premium": premium}
 
 if __name__ == "__main__":
     import uvicorn
