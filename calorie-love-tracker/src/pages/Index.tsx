@@ -8,6 +8,7 @@ import { FoodTable } from "../components/FoodTable";
 import { MoodTracker } from "../components/MoodTracker";
 import { WaterTracker } from "../components/WaterTracker";
 import { PresetPicker } from "../components/PresetPicker";
+import { AdminPanel } from "../components/AdminPanel";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -333,6 +334,13 @@ const Index = () => {
                   Редактировать профиль
                 </Button>
               </div>
+
+              {/* Admin Panel */}
+              {user?.email === 'germannm@vk.com' && (
+                <div className="mt-8">
+                  <AdminPanel user={user} />
+                </div>
+              )}
             </>
           )}
         </div>

@@ -322,34 +322,26 @@ async def profile_callback(callback: CallbackQuery, state: FSMContext):
                 water_data = water_r.json()
                 water_ml = water_data.get('water_ml', 0)
             
-            # Получаем последние данные о жире
+            # Получаем данные о жире из профиля пользователя
             fat_info = ""
             try:
-                from database.init_database import async_session, FatTracking
-                from sqlalchemy import select, desc
+                from database.init_database import async_session, User
                 from api.ai_api.fat_calculator import FatPercentageCalculator
                 
                 async with async_session() as session:
-                    result = await session.execute(
-                        select(FatTracking)
-                        .where(FatTracking.user_id == user_id)
-                        .order_by(desc(FatTracking.created_at))
-                        .limit(1)
-                    )
-                    last_fat_measurement = result.scalar_one_or_none()
-                
-                if last_fat_measurement:
-                    category = FatPercentageCalculator.get_fat_category(
-                        last_fat_measurement.body_fat_percent, 
-                        last_fat_measurement.gender
-                    )
-                    fat_info = f'🏃‍♀️ % жира: {last_fat_measurement.body_fat_percent}% {category["emoji"]}\n'
-                    if last_fat_measurement.goal_fat_percent:
-                        diff = last_fat_measurement.goal_fat_percent - last_fat_measurement.body_fat_percent
-                        if abs(diff) <= 1:
-                            fat_info += f'🎯 Цель: достигнута!\n'
-                        else:
-                            fat_info += f'🎯 До цели: {abs(diff):.1f}%\n'
+                    user = await session.get(User, user_id)
+                    if user and user.body_fat_percent:
+                        category = FatPercentageCalculator.get_fat_category(
+                            user.body_fat_percent, 
+                            user.gender or 'male'
+                        )
+                        fat_info = f'🏃‍♀️ % жира: {user.body_fat_percent}% {category["emoji"]}\n'
+                        if user.goal_fat_percent:
+                            diff = user.goal_fat_percent - user.body_fat_percent
+                            if abs(diff) <= 1:
+                                fat_info += f'🎯 Цель: достигнута!\n'
+                            else:
+                                fat_info += f'🎯 До цели: {abs(diff):.1f}%\n'
             except:
                 pass  # Если ошибка - просто не показываем данные о жире
             
@@ -998,22 +990,29 @@ async def water_add_input(message: Message, state: FSMContext):
         await message.answer('<b>Введите количество мл (1-5000)</b>')
         return
     
+    # Обновляем воду в локальной базе данных
+    async with async_session() as session:
+        user = await session.get(User, message.from_user.id)
+        if not user:
+            user = User(tg_id=message.from_user.id, water_ml=ml)
+            session.add(user)
+        else:
+            user.water_ml = (user.water_ml or 0) + ml
+        await session.commit()
+    
+    # Также отправляем в API для синхронизации
     import requests
     payload = {'user_id': message.from_user.id, 'ml': ml}
     try:
         r = requests.post(f'{API_URL}/api/water', json=payload, timeout=REQUEST_TIMEOUT)
         if r.status_code == 200:
-            await message.answer(f'<b>Записано! Добавлено {ml} мл воды</b>', reply_markup=kb.main_menu_kb)
+            await message.answer(f'<b>💧 Записано! Добавлено {ml} мл воды</b>\n\n<b>Всего выпито сегодня: {user.water_ml} мл</b>', reply_markup=kb.main_menu_kb)
         else:
-            error_detail = r.json().get('detail', 'Неизвестная ошибка') if r.content else 'Ошибка сервера'
-            await message.answer(f'<b>Ошибка записи воды: {error_detail}</b>')
-    except requests.exceptions.Timeout:
-        await message.answer("❌ Таймаут соединения с API сервером. Попробуйте позже.")
-    except requests.exceptions.ConnectionError:
-        await message.answer("❌ Ошибка соединения с API сервером. Проверьте, что сервер запущен.")
-    except Exception as e:
-        error_msg = str(e).replace('<', '&lt;').replace('>', '&gt;')
-        await message.answer(f'<b>Ошибка соединения с сервером: {error_msg}</b>')
+            # Если API недоступен, все равно показываем успех (данные сохранены локально)
+            await message.answer(f'<b>💧 Записано! Добавлено {ml} мл воды</b>\n\n<b>Всего выпито сегодня: {user.water_ml} мл</b>', reply_markup=kb.main_menu_kb)
+    except:
+        # Если API недоступен, все равно показываем успех (данные сохранены локально)
+        await message.answer(f'<b>💧 Записано! Добавлено {ml} мл воды</b>\n\n<b>Всего выпито сегодня: {user.water_ml} мл</b>', reply_markup=kb.main_menu_kb)
     
     await state.clear()
     await clear_fsm_state(message.from_user.id)
