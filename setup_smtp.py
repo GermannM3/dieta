@@ -69,18 +69,38 @@ def test_smtp():
             print(f"  Пользователь: {email_service.smtp_username}")
             print(f"  От: {email_service.from_email}")
             
-            # Тестируем отправку
-            test_email = "test@example.com"
-            result = email_service.send_email(
-                to_email=test_email,
-                subject="Тест SMTP",
-                body="Это тестовое письмо для проверки SMTP настроек."
-            )
+            # Тестируем отправку (без реальной отправки)
+            print("\n📧 Тестирование подключения к SMTP серверу...")
             
-            if result:
-                print("✅ Тестовое письмо отправлено успешно")
-            else:
-                print("❌ Ошибка отправки тестового письма")
+            import smtplib
+            try:
+                if email_service.smtp_port == 465:
+                    # SSL соединение
+                    server = smtplib.SMTP_SSL(email_service.smtp_server, email_service.smtp_port, timeout=10)
+                else:
+                    # STARTTLS соединение
+                    server = smtplib.SMTP(email_service.smtp_server, email_service.smtp_port, timeout=10)
+                    if email_service.smtp_port != 25:
+                        server.starttls()
+                
+                # Пытаемся войти
+                server.login(email_service.smtp_username, email_service.smtp_password)
+                print("✅ Подключение к SMTP серверу успешно!")
+                print("✅ Аутентификация прошла успешно!")
+                
+                # Закрываем соединение
+                server.quit()
+                
+                print("\n✅ SMTP полностью настроен и готов к работе!")
+                
+            except smtplib.SMTPAuthenticationError:
+                print("❌ Ошибка аутентификации SMTP")
+                print("   Проверьте правильность логина и пароля")
+            except smtplib.SMTPConnectError:
+                print("❌ Ошибка подключения к SMTP серверу")
+                print("   Проверьте правильность сервера и порта")
+            except Exception as e:
+                print(f"❌ Ошибка SMTP: {e}")
         else:
             print("❌ SMTP не настроен")
             print("Добавьте настройки SMTP в .env файл")
