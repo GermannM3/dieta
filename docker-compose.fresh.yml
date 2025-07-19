@@ -12,6 +12,9 @@ services:
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - app-network
 
@@ -27,6 +30,9 @@ services:
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - app-network
 
@@ -38,6 +44,9 @@ services:
     restart: unless-stopped
     depends_on:
       - api
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - app-network
 
@@ -52,6 +61,9 @@ services:
     depends_on:
       - frontend
       - api
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - app-network
 
