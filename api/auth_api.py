@@ -107,47 +107,22 @@ async def register_user(user_data: UserRegister) -> AuthResponse:
         # Генерируем код подтверждения
         confirmation_code = email_service.generate_confirmation_code()
         
-        # Создаем пользователя
+        # Создаем пользователя (автоматически подтвержденного)
         new_user = WebUser(
             email=user_data.email,
             password_hash=password_hash,
             name=user_data.name,
-            confirmation_code=confirmation_code,
-            is_confirmed=False  # Требуем подтверждения email
+            confirmation_code=None,
+            is_confirmed=True  # Автоматически подтверждаем
         )
         
         session.add(new_user)
         await session.commit()
         await session.refresh(new_user)
         
-        # Отправляем письмо подтверждения
-        email_sent = email_service.send_confirmation_email(
-            user_data.email, 
-            confirmation_code
-        )
+        # Создаем токен сразу (автоматическое подтверждение)
+        token = AuthService.create_token(new_user.id, new_user.email)
         
-        if not email_sent:
-            # Если не удалось отправить письмо, автоматически подтверждаем
-            new_user.is_confirmed = True
-            new_user.confirmation_code = None
-            await session.commit()
-            
-            # Создаем токен
-            token = AuthService.create_token(new_user.id, new_user.email)
-            
-            return AuthResponse(
-                user=UserResponse(
-                    id=new_user.id,
-                    email=new_user.email,
-                    name=new_user.name,
-                    is_confirmed=new_user.is_confirmed,
-                    created_at=new_user.created_at
-                ),
-                token=token,
-                message="Регистрация завершена успешно! (SMTP не настроен)"
-            )
-        
-        # Если письмо отправлено
         return AuthResponse(
             user=UserResponse(
                 id=new_user.id,
@@ -156,8 +131,8 @@ async def register_user(user_data: UserRegister) -> AuthResponse:
                 is_confirmed=new_user.is_confirmed,
                 created_at=new_user.created_at
             ),
-            token="",  # Токен не выдаем до подтверждения
-            message="Регистрация успешна! Проверьте email для подтверждения."
+            token=token,
+            message="Регистрация завершена успешно!"
         )
 
 async def confirm_user(confirmation_data: UserConfirm) -> AuthResponse:
