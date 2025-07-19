@@ -76,6 +76,12 @@ docker-compose down
 ./server_complete_fix.sh
 ```
 
+
+
+
+
+
+
 3. **Проверка логов**:
 ```bash
 docker-compose logs api
