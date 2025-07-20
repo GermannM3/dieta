@@ -14,6 +14,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from database.init_database import engine, WebUser, async_session
+from sqlalchemy import text
 
 def hash_password(password: str) -> str:
     """Хеширует пароль используя bcrypt"""
@@ -32,7 +33,7 @@ async def fix_admin():
             
             # Ищем существующего админа
             result = await session.execute(
-                "SELECT id, email FROM web_users WHERE email = :email",
+                text("SELECT id, email FROM web_users WHERE email = :email"),
                 {"email": admin_email}
             )
             existing_admin = result.fetchone()
@@ -41,7 +42,7 @@ async def fix_admin():
                 print(f"❌ Админ уже существует: {existing_admin[1]}")
                 # Удаляем старого админа
                 await session.execute(
-                    "DELETE FROM web_users WHERE email = :email",
+                    text("DELETE FROM web_users WHERE email = :email"),
                     {"email": admin_email}
                 )
                 await session.commit()
@@ -51,10 +52,10 @@ async def fix_admin():
             hashed_password = hash_password("admin123")
             
             await session.execute(
-                """
+                text("""
                 INSERT INTO web_users (email, password_hash, name, is_confirmed, created_at, updated_at)
                 VALUES (:email, :password_hash, :name, :is_confirmed, NOW(), NOW())
-                """,
+                """),
                 {
                     "email": admin_email,
                     "password_hash": hashed_password,
