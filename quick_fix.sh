@@ -13,10 +13,12 @@ docker-compose -f docker-compose.minimal.yml down
 docker-compose -f docker-compose.minimal.yml up -d
 
 echo "4️⃣ Ожидание запуска..."
-sleep 10
+sleep 15
 
 echo "5️⃣ Исправление админа..."
-docker exec $(docker ps -q --filter "name=api") python3 -c "
+API_CONTAINER=$(docker ps --format "table {{.Names}}" | grep api | head -1)
+if [ -n "$API_CONTAINER" ]; then
+    docker exec "$API_CONTAINER" python3 -c "
 import asyncio
 import bcrypt
 from database.init_database import async_session_maker
@@ -78,8 +80,15 @@ async def fix_admin():
 
 asyncio.run(fix_admin())
 "
+else
+    echo "❌ API контейнер не найден!"
+fi
 
 echo "6️⃣ Тестирование API..."
+chmod +x test_api.sh
 ./test_api.sh
+
+echo "7️⃣ Проверка статуса контейнеров..."
+docker ps
 
 echo "✅ Все исправления завершены!" 
