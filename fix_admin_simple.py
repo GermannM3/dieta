@@ -1,87 +1,84 @@
 #!/usr/bin/env python3
-"""
-Скрипт для исправления админа в базе данных
-"""
-
 import os
 import sys
+import subprocess
+
+def fix_admin():
+    print("🔧 Исправление админа germannm@vk.com...")
+    
+    # Команда для запуска в Docker контейнере
+    cmd = """
+    docker exec -it $(docker ps -q --filter "name=api") python3 -c "
 import asyncio
 import bcrypt
-from pathlib import Path
-
-# Добавляем путь к проекту
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
-
-from database.init_database import engine, WebUser, async_session
+from database.init_database import async_session_maker
 from sqlalchemy import text
 
-def hash_password(password: str) -> str:
-    """Хеширует пароль используя bcrypt"""
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed.decode('utf-8')
-
 async def fix_admin():
-    """Исправляет админа в базе данных"""
-    print("🔧 Исправляем админа...")
+    print('🔧 Исправление админа germannm@vk.com...')
     
-    async with async_session() as session:
+    password = 'Germ@nnM3'
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+    
+    async with async_session_maker() as session:
         try:
-            # Проверяем существует ли админ
-            admin_email = "admin@dieta.ru"
-            
-            # Ищем существующего админа
             result = await session.execute(
-                text("SELECT id, email FROM web_users WHERE email = :email"),
-                {"email": admin_email}
+                text('SELECT id, email, is_admin FROM users WHERE email = :email'),
+                {'email': 'germannm@vk.com'}
             )
-            existing_admin = result.fetchone()
+            user = result.fetchone()
             
-            if existing_admin:
-                print(f"❌ Админ уже существует: {existing_admin[1]}")
-                # Удаляем старого админа
+            if user:
+                print(f'✅ Пользователь найден: {user.email}')
+                
                 await session.execute(
-                    text("DELETE FROM web_users WHERE email = :email"),
-                    {"email": admin_email}
+                    text('''
+                        UPDATE users 
+                        SET password_hash = :password_hash, 
+                            is_admin = true,
+                            is_verified = true
+                        WHERE email = :email
+                    '''),
+                    {
+                        'password_hash': hashed_password.decode('utf-8'),
+                        'email': 'germannm@vk.com'
+                    }
                 )
-                await session.commit()
-                print("🗑️ Старый админ удален")
-            
-            # Создаем нового админа
-            hashed_password = hash_password("admin123")
-            
-            await session.execute(
-                text("""
-                INSERT INTO web_users (email, password_hash, name, is_confirmed, created_at, updated_at)
-                VALUES (:email, :password_hash, :name, :is_confirmed, NOW(), NOW())
-                """),
-                {
-                    "email": admin_email,
-                    "password_hash": hashed_password,
-                    "name": "Администратор",
-                    "is_confirmed": True
-                }
-            )
+                print('✅ Пароль обновлен и пользователь сделан админом')
+            else:
+                print('❌ Пользователь не найден, создаем нового...')
+                
+                await session.execute(
+                    text('''
+                        INSERT INTO users (email, password_hash, is_admin, is_verified, created_at)
+                        VALUES (:email, :password_hash, true, true, NOW())
+                    '''),
+                    {
+                        'email': 'germannm@vk.com',
+                        'password_hash': hashed_password.decode('utf-8')
+                    }
+                )
+                print('✅ Новый админ создан')
             
             await session.commit()
-            
-            print(f"✅ Новый админ создан: {admin_email}")
-            print("🔑 Логин: admin@dieta.ru")
-            print("🔑 Пароль: admin123")
+            print('✅ Изменения сохранены в базе')
             
         except Exception as e:
-            print(f"❌ Ошибка: {e}")
+            print(f'❌ Ошибка: {e}')
             await session.rollback()
-            raise
 
-async def main():
-    """Главная функция"""
+asyncio.run(fix_admin())
+"
+    """
+    
     try:
-        await fix_admin()
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        print(result.stdout)
+        if result.stderr:
+            print("Ошибки:", result.stderr)
     except Exception as e:
-        print(f"❌ Критическая ошибка: {e}")
-        sys.exit(1)
+        print(f"❌ Ошибка выполнения: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    fix_admin() 
