@@ -2,31 +2,34 @@
 
 echo "🔍 Тестирование API эндпоинтов..."
 
+# Базовый URL для тестов
+BASE_URL="http://5.129.198.80"
+
 echo "1️⃣ Проверка API документации..."
-curl -I https://tvoi-kalkulyator.ru/docs
+curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" "$BASE_URL/api/docs"
 
 echo "2️⃣ Тест поиска продуктов..."
-curl -X POST "https://tvoi-kalkulyator.ru/api/search_food" \
+curl -s -X POST "$BASE_URL/api/search_food" \
   -H "Content-Type: application/json" \
   -d '{"query": "яблоко"}' \
-  -w "\nHTTP Status: %{http_code}\n"
+  -o /dev/null -w "HTTP Status: %{http_code}\n"
 
 echo "3️⃣ Тест расчета калорий..."
-curl -X POST "https://tvoi-kalkulyator.ru/api/calculate_calories" \
+curl -s -X POST "$BASE_URL/api/calculate_calories" \
   -H "Content-Type: application/json" \
-  -d '{"foods": [{"name": "яблоко", "amount": 100}]}' \
-  -w "\nHTTP Status: %{http_code}\n"
+  -d '{"food_name": "яблоко", "quantity": 100}' \
+  -o /dev/null -w "HTTP Status: %{http_code}\n"
 
 echo "4️⃣ Тест регистрации..."
-curl -X POST "https://tvoi-kalkulyator.ru/api/register" \
+curl -s -X POST "$BASE_URL/api/register" \
   -H "Content-Type: application/json" \
-  -d '{"email": "test@example.com", "password": "test123"}' \
-  -w "\nHTTP Status: %{http_code}\n"
+  -d '{"email": "test@example.com", "password": "testpass123"}' \
+  -o /dev/null -w "HTTP Status: %{http_code}\n"
 
 echo "5️⃣ Тест входа..."
-curl -X POST "https://tvoi-kalkulyator.ru/api/login" \
+curl -s -X POST "$BASE_URL/api/login" \
   -H "Content-Type: application/json" \
   -d '{"email": "germannm@vk.com", "password": "Germ@nnM3"}' \
-  -w "\nHTTP Status: %{http_code}\n"
+  -o /dev/null -w "HTTP Status: %{http_code}\n"
 
 echo "✅ Тестирование завершено!" 
