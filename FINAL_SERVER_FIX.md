@@ -15,6 +15,7 @@
 Пересборка 
 
 cd /opt/dieta
+source venv/bin/activate
 git pull origin main
 docker-compose down
 docker-compose build --no-cache

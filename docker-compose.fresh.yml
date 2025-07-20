@@ -50,7 +50,7 @@ services:
     networks:
       - app-network
 
-  # Nginx Reverse Proxy
+  # Nginx Reverse Proxy with SSL
   nginx:
     image: nginx:alpine
     ports:
