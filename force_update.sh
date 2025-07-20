@@ -15,8 +15,15 @@ git reset --hard origin/main
 docker-compose -f docker-compose.fresh.yml down
 docker-compose -f docker-compose.fresh.yml up -d
 
-# Исправляем админа
-chmod +x fix_admin_docker.sh
-./fix_admin_docker.sh
+# Ждем запуска контейнеров
+sleep 10
 
-echo "✅ Обновление завершено!" 
+# Исправляем админа
+echo "🔧 Исправляем админа..."
+source venv/bin/activate
+python3 fix_admin_simple.py
+
+echo "✅ Обновление завершено!"
+echo "🌐 Проверьте сайты:"
+echo "   https://tvoi-kalkulyator.ru"
+echo "   https://твой-калькулятор.рф" 
