@@ -6,6 +6,7 @@
 import os
 import sys
 import asyncio
+import bcrypt
 from pathlib import Path
 
 # Добавляем путь к проекту
@@ -13,14 +14,12 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from database.init_database import engine, WebUser, async_session
-from passlib.context import CryptContext
-
-# Настройка хеширования паролей
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
-    """Хеширует пароль"""
-    return pwd_context.hash(password)
+    """Хеширует пароль используя bcrypt"""
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 async def fix_admin():
     """Исправляет админа в базе данных"""
