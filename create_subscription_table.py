@@ -15,8 +15,8 @@ async def create_subscription_table():
     try:
         # Получаем URL базы данных
         database_url = os.getenv('DATABASE_URL')
-        if database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        if database_url.startswith('postgresql+asyncpg://'):
+            database_url = database_url.replace('postgresql+asyncpg://', 'postgresql://', 1)
         
         # Подключаемся к базе данных
         conn = psycopg2.connect(database_url)
