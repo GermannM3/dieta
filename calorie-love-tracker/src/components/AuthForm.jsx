@@ -23,7 +23,7 @@ export const AuthForm = ({ onAuthSuccess }) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email,
+          email,
             password
           })
         });
@@ -34,7 +34,7 @@ export const AuthForm = ({ onAuthSuccess }) => {
           localStorage.setItem('authToken', data.access_token);
           localStorage.setItem('user', JSON.stringify(data.user));
           console.log("Успешный вход:", data);
-          toast({ title: "Добро пожаловать!" });
+        toast({ title: "Добро пожаловать!" });
           onAuthSuccess();
         } else {
           const errorData = await response.json();
@@ -48,8 +48,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email,
-            password,
+          email,
+          password,
             name: email.split('@')[0] // Используем часть email как имя
           })
         });
