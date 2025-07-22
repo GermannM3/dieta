@@ -1,8 +1,9 @@
-# Core frameworks
-aiogram==3.4.1
-aiohttp>=3.9.0,<3.11
-fastapi
-uvicorn[standard]
+# Core frameworks - фиксированные совместимые версии
+aiogram==3.4.1                    # фиксируем
+aiohttp>=3.9,<3.11                # совместим
+pydantic==2.5.3                   # единственная версия, которую просит aiogram
+fastapi==0.110.0                  # совместим с pydantic 2
+uvicorn[standard]>=0.24
 
 # Database
 sqlalchemy>=2.0,<2.1
@@ -11,19 +12,16 @@ psycopg2-binary
 
 # Utilities
 python-dotenv
-redis>=5.0,<6.0
+redis>=5,<6
 requests
-pydantic>=2.4.1,<2.6
+bcrypt
+pyjwt
+email-validator
+yookassa>=2.4,<3
 
 # AI - используем совместимую версию
 mistralai>=1.5,<1.6
 vosk
-
-# Other
-bcrypt
-pyjwt
-email-validator
-yookassa
 
 # Optional - добавляем только если нужно
 aiofiles>=23.0.0,<24.0.0
