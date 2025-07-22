@@ -31,25 +31,16 @@ services:
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
-    # Убираем healthcheck для бота, так как он может мешать запуску
-    # healthcheck:
-    #   test: ["CMD", "ps", "aux", "|", "grep", "python", "|", "grep", "main.py"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 3
-    #   start_period: 60s
-    # Убираем зависимость от API, чтобы бот мог запуститься независимо
-    # depends_on:
-    #   api:
-    #     condition: service_healthy
+    depends_on:
+      - api
 
-  # React Frontend
+  # React Frontend с Nginx
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
     ports:
-      - "80:80"
+      - "3000:80"  # Изменяем порт с 80 на 3000 чтобы избежать конфликта
     restart: unless-stopped
     depends_on:
       - api
