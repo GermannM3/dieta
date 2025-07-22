@@ -22,7 +22,8 @@ docker-compose logs nginx
 
 ### Просмотр логов в реальном времени:
 ```bash
-docker-compose logs -f
+
+
 docker-compose logs -f bot
 ```
 
