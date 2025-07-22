@@ -3,7 +3,7 @@ from aiogram.types import Message, PreCheckoutQuery, LabeledPrice
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from database.init_database import async_session_maker, User
+from database.init_database import async_session, User
 from sqlalchemy import select
 from .payment_operations import PaymentManager
 import os
@@ -138,7 +138,7 @@ async def successful_payment_handler(message: Message, state: FSMContext):
         
         if success:
             # Получаем информацию о подписке
-            async with async_session_maker() as session:
+            async with async_session() as session:
                 subscription = await session.execute(
                     select(Subscription).where(Subscription.payment_id == payment_id)
                 )
