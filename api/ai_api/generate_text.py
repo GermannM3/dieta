@@ -1,4 +1,4 @@
-from mistralai import Mistral
+from mistralai.client import MistralClient
 from aiogram.types import Message
 from dotenv import load_dotenv
 
@@ -14,7 +14,7 @@ load_dotenv()
 api_key = os.getenv('MISTRAL_API_KEY')
 model = 'codestral-latest'
 
-client = Mistral(api_key=api_key)
+client = MistralClient(api_key=api_key)
 
 def encode_image(image_path):
     try:
