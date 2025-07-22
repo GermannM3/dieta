@@ -42,13 +42,19 @@ curl http://5.129.198.80:8000/health
 curl http://5.129.198.80:3000
 ```
 
-## 9. Проверить домены
+## 9. Проверить HTTPS домены
 ```bash
-curl http://твой-калькулятор.рф
-curl http://tvoi-kalkulyator.ru
+curl -I https://твой-калькулятор.рф
+curl -I https://tvoi-kalkulyator.ru
 ```
 
-## 10. Посмотреть логи
+## 10. Проверить HTTP → HTTPS редирект
+```bash
+curl -I http://твой-калькулятор.рф
+curl -I http://tvoi-kalkulyator.ru
+```
+
+## 11. Посмотреть логи
 ```bash
 docker-compose logs api
 docker-compose logs bot
@@ -58,4 +64,9 @@ docker-compose logs nginx
 ## Быстрая последовательность:
 ```bash
 cd /opt/dieta && git stash && git pull && docker-compose down && docker system prune -af --volumes && docker-compose build --no-cache && docker-compose up -d
+```
+
+## Проверка SSL сертификатов:
+```bash
+ls -la /etc/letsencrypt/live/твой-калькулятор.рф/
 ``` 
