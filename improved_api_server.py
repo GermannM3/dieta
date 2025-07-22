@@ -301,15 +301,119 @@ async def get_presets(user_id: int = Query(...)):
 
 @app.post("/api/preset")
 async def add_preset(preset: PresetIn):
-    async with async_session() as session:
-        new_preset = Preset(
-            user_id=preset.user_id,
-            name=preset.name,
-            food_items=preset.food_items
-        )
-        session.add(new_preset)
-        await session.commit()
-        return {"status": "ok", "preset_id": new_preset.id}
+    """Добавляет новый шаблон"""
+    try:
+        async with async_session() as session:
+            # Создаем новый шаблон
+            new_preset = Preset(
+                user_id=preset.user_id,
+                name=preset.name,
+                food_items=preset.food_items
+            )
+            session.add(new_preset)
+            await session.commit()
+            await session.refresh(new_preset)
+            
+            return {"message": "Шаблон создан", "preset_id": new_preset.id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/add_preset_meals")
+async def add_preset_meals(data: dict):
+    """Добавляет еду из шаблона в прием пищи"""
+    try:
+        user_id = data.get('user_id')
+        preset_id = data.get('preset_id')
+        
+        if not user_id or not preset_id:
+            raise HTTPException(status_code=400, detail="Необходимы user_id и preset_id")
+        
+        async with async_session() as session:
+            # Получаем шаблон
+            preset_result = await session.execute(
+                select(Preset).where(Preset.id == preset_id, Preset.user_id == user_id)
+            )
+            preset = preset_result.scalar_one_or_none()
+            
+            if not preset:
+                raise HTTPException(status_code=404, detail="Шаблон не найден")
+            
+            # Добавляем каждое блюдо из шаблона
+            total_calories = 0
+            total_protein = 0
+            total_fat = 0
+            total_carbs = 0
+            meals_count = 0
+            
+            for food_item in preset.food_items:
+                food_name = food_item.get('food_name')
+                weight = food_item.get('weight', 100)
+                
+                # Ищем продукт в базе
+                food_result = await session.execute(
+                    select(Food).where(Food.name.ilike(f"%{food_name}%"))
+                )
+                food = food_result.scalar_one_or_none()
+                
+                if food:
+                    # Получаем питательные вещества
+                    nutrients_result = await session.execute(
+                        select(FoodNutrient).where(FoodNutrient.food_id == food.id)
+                    )
+                    nutrients = nutrients_result.scalars().all()
+                    
+                    # Рассчитываем калории и БЖУ
+                    calories = 0
+                    protein = 0
+                    fat = 0
+                    carbs = 0
+                    
+                    for nutrient in nutrients:
+                        if nutrient.nutrient_name == 'Calories':
+                            calories = (nutrient.value * weight) / 100
+                        elif nutrient.nutrient_name == 'Protein':
+                            protein = (nutrient.value * weight) / 100
+                        elif nutrient.nutrient_name == 'Total lipid (fat)':
+                            fat = (nutrient.value * weight) / 100
+                        elif nutrient.nutrient_name == 'Carbohydrate, by difference':
+                            carbs = (nutrient.value * weight) / 100
+                    
+                    # Создаем запись о приеме пищи
+                    meal = Meal(
+                        user_id=user_id,
+                        food_name=food_name,
+                        weight_grams=weight,
+                        calories=calories,
+                        protein=protein,
+                        fat=fat,
+                        carbs=carbs,
+                        date=datetime.now().date(),
+                        time=datetime.now().time()
+                    )
+                    session.add(meal)
+                    
+                    total_calories += calories
+                    total_protein += protein
+                    total_fat += fat
+                    total_carbs += carbs
+                    meals_count += 1
+            
+            await session.commit()
+            
+            return {
+                "message": "Еда из шаблона добавлена",
+                "preset_name": preset.name,
+                "total_calories": total_calories,
+                "total_protein": total_protein,
+                "total_fat": total_fat,
+                "total_carbs": total_carbs,
+                "meals_count": meals_count
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/stats")
 async def get_user_stats(user_id: int = Query(...)):

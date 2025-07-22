@@ -28,7 +28,7 @@ REQUEST_TIMEOUT = 30  # Увеличенный таймаут для всех з
 CONNECTION_TIMEOUT = 10  # Таймаут подключения
 
 # API URL для обращения к серверу
-API_URL = os.getenv('API_BASE_URL', 'http://127.0.0.1:8000')
+API_URL = os.getenv('API_BASE_URL', 'http://5.129.198.80:8000')
 
 router = Router()
 
