@@ -209,16 +209,20 @@ engine = create_async_engine(
     DATABASE_URL, 
     echo=False, 
     future=True,
-    pool_size=5,  # Уменьшаем размер пула для быстрого старта
-    max_overflow=10,  # Уменьшаем максимальное количество дополнительных соединений
+    pool_size=10,  # Увеличиваем размер пула
+    max_overflow=20,  # Увеличиваем максимальное количество дополнительных соединений
     pool_pre_ping=True,  # Проверяем соединения перед использованием
-    pool_recycle=1800,  # Пересоздаем соединения каждые 30 минут
-    pool_timeout=10,  # Уменьшаем таймаут получения соединения из пула
+    pool_recycle=3600,  # Пересоздаем соединения каждые 60 минут
+    pool_timeout=30,  # Увеличиваем таймаут получения соединения из пула
     connect_args={
         "server_settings": {
             "application_name": "diet_bot"
         },
-        "command_timeout": 10   # Таймаут выполнения команд
+        "command_timeout": 30,   # Увеличиваем таймаут выполнения команд
+        "connect_timeout": 10,   # Таймаут подключения
+        "keepalives_idle": 30,   # Отправляем keepalive каждые 30 секунд
+        "keepalives_interval": 10,  # Интервал между keepalive
+        "keepalives_count": 5    # Количество попыток keepalive
     }
 )
 async_session = async_sessionmaker(
