@@ -48,7 +48,7 @@ async def generate_prompt(tg_id: int, main_prompt: str):
 async def answer_to_text_prompt(main_prompt: str, tg_id: int):
     prompt = await generate_prompt(tg_id=tg_id, main_prompt=main_prompt)
     try:
-        chat_response = await client.chat.complete_async(
+        chat_response = client.chat.complete(
             model = model,
             messages = prompt,
             max_tokens=1600
@@ -95,7 +95,7 @@ async def answer_to_view_prompt(message: Message):
         prompt.append(main_prompt)
 
     try:
-        chat_response = await client.chat.complete_async(
+        chat_response = client.chat.complete(
             model=model,
             messages=prompt,
             max_tokens=1600
