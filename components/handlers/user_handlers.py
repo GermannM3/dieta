@@ -913,8 +913,9 @@ async def preset_food(message: Message, state: FSMContext):
         except Exception as e:
             error_msg = str(e).replace('<', '&lt;').replace('>', '&gt;')
             await message.answer(f'<b>Ошибка соединения с сервером: {error_msg}</b>', reply_markup=kb.main_menu_kb)
-        await state.clear()
-        await clear_fsm_state(message.from_user.id)
+        finally:
+            await state.clear()
+            await clear_fsm_state(message.from_user.id)
         return
     
     try:
