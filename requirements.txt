@@ -1,16 +1,10 @@
-# Core frameworks - фиксированные совместимые версии
-aiogram==3.4.1                    # фиксируем
-aiohttp>=3.9,<3.11                # совместим
-pydantic==2.5.3                   # единственная версия, которую просит aiogram
-fastapi==0.110.0                  # совместим с pydantic 2
+aiogram==3.4.1
+aiohttp>=3.9,<3.11
+fastapi>=0.110,<0.120
 uvicorn[standard]>=0.24
-
-# Database
 sqlalchemy>=2.0,<2.1
 asyncpg
 psycopg2-binary
-
-# Utilities
 python-dotenv
 redis>=5,<6
 requests
@@ -18,46 +12,6 @@ bcrypt
 pyjwt
 email-validator
 yookassa>=2.4,<3
-
-# AI - используем совместимую версию
-mistralai>=1.5,<1.6
+mistralai<1.7
 vosk
-
-# Optional - добавляем только если нужно
-aiofiles>=23.0.0,<24.0.0
-aiohappyeyeballs
-aiosignal
-aiosqlite
-annotated-types
-anyio
-attrs
-certifi
-cffi
-charset-normalizer
-colorama
-eval_type_backport
-frozenlist
-greenlet
-h11
-httpcore
-httpx
-idna
-magic-filter
-Markdown
-multidict
-propcache
-pycparser
-pydantic_core
-pydub
-pylatexenc
-python-dateutil
-pytz
-six
-sniffio
-srt
-tqdm
-typing-inspection
-typing_extensions
-urllib3
-websockets
-yarl
+aiofiles>=23,<24
