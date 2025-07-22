@@ -11,13 +11,13 @@ import requests
 import json
 from datetime import datetime, timedelta
 import asyncio
+import logging
 
 from database.crud import add_user_if_not_exists, reset_context, add_to_context, save_fsm_state, get_fsm_state, clear_fsm_state
 import components.keyboards.user_kb as kb
 from components.states.user_states import Chat, Image
 from api.ai_api.generate_text import translate
 from api.ai_api.gigachat_api import generate_text_gigachat
-from components.payment_system.payment_operations import check_premium
 from components.keyboards.user_kb import main_menu_kb
 
 # --- Импортируем async_session ---
