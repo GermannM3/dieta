@@ -1,3 +1,4 @@
+from mistralai import Mistral
 from aiogram.types import Message
 from dotenv import load_dotenv
 
@@ -10,24 +11,10 @@ from api.ai_api.gigachat_api import generate_text_gigachat
 
 load_dotenv()
 
-# Временная заглушка для mistralai
-class MistralStub:
-    def __init__(self, api_key=None):
-        pass
-    
-    async def chat(self):
-        return self
-    
-    async def complete_async(self, **kwargs):
-        return type('Response', (), {
-            'choices': [type('Choice', (), {
-                'message': type('Message', (), {
-                    'content': 'Функция временно недоступна. Используйте GigaChat.'
-                })()
-            })()]
-        })()
+api_key = os.getenv('MISTRAL_API_KEY')
+model = 'codestral-latest'
 
-client = MistralStub()
+client = Mistral(api_key=api_key)
 
 def encode_image(image_path):
     try:
