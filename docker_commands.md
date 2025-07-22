@@ -5,7 +5,12 @@
 ### Просмотр логов всех сервисов:
 ```bash
 docker-compose logs
-```
+``
+
+docker-compose down
+docker system prune -af --volumes
+docker-compose build --no-cache
+docker-compose up -d
 
 ### Просмотр логов конкретного сервиса:
 ```bash
