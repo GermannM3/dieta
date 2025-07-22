@@ -95,6 +95,21 @@ class FatTracking(Base):
     date = Column(String, nullable=False)     # YYYY-MM-DD
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class Subscription(Base):
+    __tablename__ = 'subscriptions'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, ForeignKey('users.tg_id'), nullable=False)
+    subscription_type = Column(String, nullable=False)  # 'diet_consultant' или 'menu_generator'
+    payment_id = Column(String, nullable=False)  # ID платежа в YooMoney
+    amount = Column(Float, nullable=False)  # Сумма платежа
+    currency = Column(String, default='RUB')
+    status = Column(String, default='pending')  # pending, completed, failed, refunded
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 class Food(Base):
     __tablename__ = 'food'
     fdc_id = mapped_column(BigInteger, primary_key=True)

@@ -8,6 +8,7 @@ main_menu_kb = ReplyKeyboardMarkup(
         [KeyboardButton(text='Трекер жировой массы'), KeyboardButton(text='Баллы и прогресс')],
         [KeyboardButton(text='Сгенерировать меню'), KeyboardButton(text='Личный диетолог')],
         [KeyboardButton(text='Статистика'), KeyboardButton(text='Распознать еду на фото')],
+        [KeyboardButton(text='💳 Мои подписки'), KeyboardButton(text='🛒 Купить подписку')],
     ],
     resize_keyboard=True
 )
