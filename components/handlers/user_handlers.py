@@ -909,19 +909,21 @@ async def preset_food(message: Message, state: FSMContext):
             if r.status_code == 200:
                 await message.answer('<b>Шаблон сохранён!</b>', reply_markup=kb.main_menu_kb)
             else:
-                await message.answer('<b>Ошибка сохранения шаблона</b>')
+                await message.answer('<b>Ошибка сохранения шаблона</b>', reply_markup=kb.main_menu_kb)
         except Exception as e:
             error_msg = str(e).replace('<', '&lt;').replace('>', '&gt;')
-        await message.answer(f'<b>Ошибка соединения с сервером: {error_msg}</b>')
+            await message.answer(f'<b>Ошибка соединения с сервером: {error_msg}</b>', reply_markup=kb.main_menu_kb)
         await state.clear()
         await clear_fsm_state(message.from_user.id)
         return
+    
     try:
         food_name, weight = [x.strip() for x in message.text.split(',')]
         weight = float(weight)
     except Exception:
         await message.answer('<b>Формат неверный. Пример: Яблоко, 100</b>')
         return
+    
     data = await state.get_data()
     food_items = data.get('food_items', [])
     food_items.append({'food_name': food_name, 'weight': weight})
@@ -1648,8 +1650,63 @@ async def statistics_command(message: Message, state: FSMContext):
 
 # Catch-all хендлер в самом конце
 @router.message()
-async def other(message: Message):
-    await message.answer('<b>Упс, я не знаю такую команду. Для начала диалога используйте /ai или выберите пункт меню.</b>', reply_markup=kb.main_menu_kb)
+async def other(message: Message, state: FSMContext):
+    """Обработчик всех остальных сообщений"""
+    # Проверяем, не находимся ли мы в каком-то состоянии
+    current_state = await state.get_state()
+    
+    if current_state:
+        # Если в состоянии, предлагаем сбросить
+        await message.answer(
+            "🤔 Похоже, вы находитесь в режиме ввода данных. "
+            "Используйте /reset_state чтобы сбросить состояние или /help для помощи.",
+            reply_markup=kb.main_menu_kb
+        )
+    else:
+        # Если не в состоянии, показываем главное меню
+        await message.answer(
+            "👋 Привет! Я ваш персональный диетолог. Выберите действие:",
+            reply_markup=kb.main_menu_kb
+        )
+
+@router.message(Command('reset_state'))
+async def reset_state_command(message: Message, state: FSMContext):
+    """Команда для сброса состояния FSM"""
+    await state.clear()
+    await clear_fsm_state(message.from_user.id)
+    await message.answer("✅ Состояние сброшено! Теперь можете использовать бота нормально.", reply_markup=kb.main_menu_kb)
+
+@router.message(Command('help'))
+async def help_command(message: Message):
+    """Команда помощи"""
+    help_text = """
+🤖 <b>Команды бота:</b>
+
+🍽️ <b>Основные функции:</b>
+• /addmeal - Добавить еду
+• /profile - Профиль
+• /history - История приёмов пищи
+• /presets - Мои шаблоны
+• /water - Трекер воды
+• /mood - Трекер настроения
+
+💡 <b>Если бот заблокирован:</b>
+• /reset_state - Сбросить состояние
+• /stop - Остановить диалог
+
+🎯 <b>Премиум функции:</b>
+• /dietolog - Личный диетолог
+• /menu - Сгенерировать меню
+
+📊 <b>Статистика:</b>
+• /score - Баллы и прогресс
+• /statistics - Статистика
+
+🆘 <b>Помощь:</b>
+• /help - Это сообщение
+• /info - Информация о боте
+"""
+    await message.answer(help_text, parse_mode='HTML', reply_markup=kb.main_menu_kb)
 
 # Функция для безопасных API запросов с retry
 async def safe_api_request(method, url, **kwargs):
