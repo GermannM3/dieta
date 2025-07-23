@@ -122,7 +122,7 @@ def check_env_file():
         logging.error("🔑 .env: ❌ (файл не найден)")
         return False
 
-def check_database_connection():
+async def check_database_connection():
     """Проверка подключения к базе данных"""
     try:
         # Импортируем необходимые модули
@@ -130,15 +130,15 @@ def check_database_connection():
         from sqlalchemy import text
         
         # Пробуем подключиться
-        with engine.begin() as conn:
-            result = conn.execute(text("SELECT 1"))
+        async with engine.begin() as conn:
+            result = await conn.execute(text("SELECT 1"))
             logging.info("🗄️ Database: ✅")
             return True
     except Exception as e:
         logging.error(f"🗄️ Database: ❌ ({e})")
         return False
 
-def main():
+async def main():
     """Основная функция диагностики"""
     logging.info("🔍 Начинаем диагностику...")
     logging.info("=" * 50)
@@ -196,11 +196,12 @@ def main():
     
     # Проверяем базу данных
     logging.info("🗄️ Проверка базы данных:")
-    check_database_connection()
+    await check_database_connection()
     
     logging.info("")
     logging.info("=" * 50)
     logging.info("✅ Диагностика завершена!")
 
 if __name__ == "__main__":
-    main() 
+    import asyncio
+    asyncio.run(main()) 

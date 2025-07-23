@@ -16,7 +16,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-def test_database():
+async def test_database():
     """Тест подключения к базе данных"""
     logging.info("🗄️ Тестируем подключение к базе данных...")
     
@@ -26,8 +26,8 @@ def test_database():
         from sqlalchemy import text
         
         # Пробуем подключиться
-        with engine.begin() as conn:
-            result = conn.execute(text("SELECT 1"))
+        async with engine.begin() as conn:
+            result = await conn.execute(text("SELECT 1"))
             logging.info("✅ База данных работает")
             return True
     except Exception as e:
@@ -170,7 +170,7 @@ def test_frontend():
         logging.error(f"❌ Ошибка запуска фронтенда: {e}")
         return False
 
-def main():
+async def main():
     """Основная функция тестирования"""
     logging.info("🧪 Начинаем тестирование сервисов...")
     logging.info("=" * 50)
@@ -178,7 +178,7 @@ def main():
     results = {}
     
     # Тестируем базу данных
-    results['database'] = test_database()
+    results['database'] = await test_database()
     
     # Тестируем API
     results['api'] = test_api()
@@ -208,4 +208,5 @@ def main():
     logging.info("=" * 50)
 
 if __name__ == "__main__":
-    main() 
+    import asyncio
+    asyncio.run(main()) 
