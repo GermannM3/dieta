@@ -11,6 +11,7 @@ import asyncio
 import logging
 import signal
 from dotenv import load_dotenv
+from utils.logger import init_default_logging, get_api_logger, log_exception, log_performance
 from api.ai_api.generate_text import translate
 import re
 from typing import List, Dict, Optional
@@ -26,15 +27,9 @@ from components.payment_system.payment_operations import check_premium
 
 load_dotenv()
 
-# Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('api_server.log'),
-        logging.StreamHandler()
-    ]
-)
+# Инициализация улучшенного логирования
+init_default_logging()
+logger = get_api_logger()
 
 # Отключаем CalorieNinjas API
 # CALORIE_NINJAS_API_KEY = os.getenv("CALORIE_NINJAS_API_KEY")
@@ -66,7 +61,7 @@ shutdown_event = asyncio.Event()
 
 def signal_handler(signum, frame):
     """Обработчик сигналов для graceful shutdown"""
-    logging.info(f"Получен сигнал {signum}, начинаю graceful shutdown API сервера...")
+    logger.info(f"Получен сигнал {signum}, начинаю graceful shutdown API сервера...")
     shutdown_event.set()
 
 # Регистрируем обработчики сигналов
@@ -892,7 +887,7 @@ async def yookassa_webhook(request: Request):
     try:
         # Получаем данные от YooKassa
         data = await request.json()
-        logging.info(f"Получен webhook от YooKassa: {data}")
+        logger.info(f"Получен webhook от YooKassa: {data}")
         
         # Проверяем, что это уведомление о платеже
         if data.get("event") == "payment.succeeded":
@@ -907,7 +902,7 @@ async def yookassa_webhook(request: Request):
                 
                 success = await PaymentManager.confirm_payment(payment_id)
                 if success:
-                    logging.info(f"Подписка активирована для пользователя {user_id}, тип: {subscription_type}")
+                    logger.info(f"Подписка активирована для пользователя {user_id}, тип: {subscription_type}")
                     
                     # Обновляем статус пользователя в основной таблице
                     async with async_session() as session:
@@ -918,21 +913,21 @@ async def yookassa_webhook(request: Request):
                         if user:
                             user.is_premium = True
                             await session.commit()
-                            logging.info(f"Пользователь {user_id} получил премиум статус")
+                            logger.info(f"Пользователь {user_id} получил премиум статус")
                     
                     return {"status": "success", "message": "Payment confirmed and subscription activated"}
                 else:
-                    logging.error(f"Не удалось подтвердить платеж {payment_id}")
+                    logger.error(f"Не удалось подтвердить платеж {payment_id}")
                     return {"status": "error", "message": "Failed to confirm payment"}
             else:
-                logging.error(f"Отсутствуют user_id или subscription_type в метаданных: {metadata}")
+                logger.error(f"Отсутствуют user_id или subscription_type в метаданных: {metadata}")
                 return {"status": "error", "message": "Missing user_id or subscription_type"}
         else:
-            logging.info(f"Получено уведомление другого типа: {data.get('event')}")
+            logger.info(f"Получено уведомление другого типа: {data.get('event')}")
             return {"status": "ignored", "message": "Event type not handled"}
             
     except Exception as e:
-        logging.error(f"Ошибка обработки webhook YooKassa: {e}")
+        logger.error(f"Ошибка обработки webhook YooKassa: {e}")
         return {"status": "error", "message": str(e)}
 
 # ===== ПЛАТЕЖНЫЕ ENDPOINTS =====
@@ -954,7 +949,7 @@ async def create_payment(request: Request):
         return payment_info
         
     except Exception as e:
-        logging.error(f"Ошибка создания платежа: {e}")
+        logger.error(f"Ошибка создания платежа: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/payment/status/{user_id}")
@@ -985,7 +980,7 @@ async def get_payment_status(user_id: int):
         }
         
     except Exception as e:
-        logging.error(f"Ошибка получения статуса платежа: {e}")
+        logger.error(f"Ошибка получения статуса платежа: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
