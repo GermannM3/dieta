@@ -12,16 +12,12 @@ from components.handlers.admin_handlers import admin_router
 from components.handlers.fat_tracker_handlers import router as fat_tracker_router
 from components.payment_system.payment_handlers import router as payment_router
 from database.init_database import init_db
+from utils.logger import init_default_logging, get_bot_logger, log_exception, log_performance
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[
-        logging.FileHandler('bot_debug.log', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
+# Инициализация улучшенного логирования
+init_default_logging()
+logger = get_bot_logger()
 
 class BotKeepAlive:
     def __init__(self):
@@ -37,11 +33,11 @@ class BotKeepAlive:
                 # Отправляем ping каждые 30 секунд
                 await bot.get_me()
                 self.last_activity = time.time()
-                logging.debug("Heartbeat: бот активен")
+                logger.debug("Heartbeat: бот активен")
                 await asyncio.sleep(30)
             except Exception as e:
                 if not self._shutdown_event:
-                    logging.warning(f"Heartbeat ошибка: {e}")
+                    logger.warning(f"Heartbeat ошибка: {e}")
                     await asyncio.sleep(10)
                 
     async def activity_monitor(self):
@@ -50,19 +46,19 @@ class BotKeepAlive:
             try:
                 current_time = time.time()
                 if current_time - self.last_activity > 300:  # 5 минут без активности
-                    logging.warning("Бот неактивен более 5 минут, проверяем соединение...")
+                    logger.warning("Бот неактивен более 5 минут, проверяем соединение...")
                     try:
                         await bot.get_me()
                         self.last_activity = current_time
-                        logging.info("Соединение восстановлено")
+                        logger.info("Соединение восстановлено")
                     except Exception as e:
-                        logging.error(f"Не удалось восстановить соединение: {e}")
+                        logger.error(f"Не удалось восстановить соединение: {e}")
                         raise e
                         
                 await asyncio.sleep(60)  # Проверяем каждую минуту
             except Exception as e:
                 if not self._shutdown_event:
-                    logging.error(f"Ошибка в мониторе активности: {e}")
+                    logger.error(f"Ошибка в мониторе активности: {e}")
                     await asyncio.sleep(30)
     
     def shutdown(self):
@@ -73,7 +69,7 @@ async def start_polling_with_retry(dp, keep_alive):
     """Запуск polling с автоматическими повторными попытками"""
     while keep_alive.restart_count < keep_alive.max_restarts and not keep_alive._shutdown_event:
         try:
-            logging.info(f"Запуск polling (попытка {keep_alive.restart_count + 1})")
+            logger.info(f"Запуск polling (попытка {keep_alive.restart_count + 1})")
             
             # Обновляем активность
             keep_alive.last_activity = time.time()
@@ -89,14 +85,14 @@ async def start_polling_with_retry(dp, keep_alive):
             )
             
         except asyncio.CancelledError:
-            logging.info("Polling отменен")
+            logger.info("Polling отменен")
             break
         except Exception as e:
             if keep_alive._shutdown_event:
                 break
             keep_alive.restart_count += 1
             error_msg = f"Ошибка в polling (попытка {keep_alive.restart_count}): {e}"
-            logging.error(error_msg)
+            logger.error(error_msg)
             
             # Прогрессивная задержка
             delay = min(30, 5 * keep_alive.restart_count)
@@ -111,12 +107,12 @@ async def start_polling_with_retry(dp, keep_alive):
                 pass
     
     if keep_alive.restart_count >= keep_alive.max_restarts:
-        logging.error("Превышено максимальное количество попыток перезапуска")
+        logger.error("Превышено максимальное количество попыток перезапуска")
         raise RuntimeError("Критическая ошибка: бот не может поддерживать соединение")
 
 async def graceful_shutdown(keep_alive, tasks):
     """Graceful shutdown бота"""
-    logging.info("Начинаю graceful shutdown бота...")
+    logger.info("Начинаю graceful shutdown бота...")
     
     # Сигнализируем о завершении
     keep_alive.shutdown()
@@ -133,38 +129,38 @@ async def graceful_shutdown(keep_alive, tasks):
     # Закрываем соединение с ботом
     try:
         await bot.session.close()
-        logging.info("🔌 Соединение с ботом закрыто")
+        logger.info("🔌 Соединение с ботом закрыто")
     except Exception as e:
-        logging.error(f"Ошибка при закрытии соединения: {e}")
+        logger.error(f"Ошибка при закрытии соединения: {e}")
 
 async def main():
     """Главная функция с полной инициализацией"""
-    logging.info("=" * 50)
-    logging.info("🤖 Запуск Диетолог-бота")
-    logging.info("=" * 50)
+    logger.info("=" * 50)
+    logger.info("🤖 Запуск Диетолог-бота")
+    logger.info("=" * 50)
     
     keep_alive = None
     tasks = []
     
     try:
         # Инициализация базы данных
-        logging.info("📊 Инициализация базы данных...")
+        logger.info("📊 Инициализация базы данных...")
         await init_db()
-        logging.info("✅ База данных готова")
+        logger.info("✅ База данных готова")
         
         # Создание диспетчера
         dp = Dispatcher()
         dp.include_routers(admin_router, payment_router, fat_tracker_router, user_router)
-        logging.info("✅ Роутеры подключены")
+        logger.info("✅ Роутеры подключены")
         
         # Проверка подключения к боту
-        logging.info("🔗 Проверка подключения к Telegram...")
+        logger.info("🔗 Проверка подключения к Telegram...")
         bot_info = await bot.get_me()
-        logging.info(f"✅ Подключен как @{bot_info.username} ({bot_info.full_name})")
+        logger.info(f"✅ Подключен как @{bot_info.username} ({bot_info.full_name})")
         
         # Очистка webhook
         await bot.delete_webhook(drop_pending_updates=True)
-        logging.info("✅ Webhook очищен")
+        logger.info("✅ Webhook очищен")
         
         # Создание системы keep-alive
         keep_alive = BotKeepAlive()
@@ -174,9 +170,9 @@ async def main():
         monitor_task = asyncio.create_task(keep_alive.activity_monitor())
         tasks = [heartbeat_task, monitor_task]
         
-        logging.info("🚀 Бот запущен и готов к работе!")
-        logging.info("💡 Система keep-alive активирована")
-        logging.info("-" * 50)
+        logger.info("🚀 Бот запущен и готов к работе!")
+        logger.info("💡 Система keep-alive активирована")
+        logger.info("-" * 50)
         
         # Основной polling
         polling_task = asyncio.create_task(start_polling_with_retry(dp, keep_alive))
@@ -194,9 +190,9 @@ async def main():
                 raise task.exception()
                 
     except KeyboardInterrupt:
-        logging.info("🛑 Бот остановлен пользователем")
+        logger.info("🛑 Бот остановлен пользователем")
     except Exception as e:
-        logging.error(f"💥 Критическая ошибка: {e}")
+        logger.error(f"💥 Критическая ошибка: {e}")
         raise
     finally:
         if keep_alive and tasks:
@@ -204,7 +200,7 @@ async def main():
 
 def signal_handler(signum, frame):
     """Обработчик сигналов для корректного завершения"""
-    logging.info(f"Получен сигнал {signum}, начинаю graceful shutdown...")
+    logger.info(f"Получен сигнал {signum}, начинаю graceful shutdown...")
     # Сигнал будет обработан в основном цикле через KeyboardInterrupt
 
 if __name__ == '__main__':
@@ -223,7 +219,7 @@ if __name__ == '__main__':
         
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.info("👋 Завершение работы...")
+        logger.info("👋 Завершение работы...")
     except Exception as e:
-        logging.error(f"💥 Фатальная ошибка: {e}")
+        logger.error(f"💥 Фатальная ошибка: {e}")
         sys.exit(1)

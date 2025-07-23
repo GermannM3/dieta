@@ -12,21 +12,21 @@ load_dotenv()
 
 async def test_db_connection():
     """Тестирует подключение к базе данных"""
-    print("🔍 Тестирование подключения к базе данных...")
+    print("Testing database connection...")
     
     try:
         # Проверяем переменные окружения
         database_url = os.getenv('DATABASE_URL')
         if not database_url:
-            print("❌ DATABASE_URL не найден в переменных окружения")
+            print("ERROR: DATABASE_URL not found in environment variables")
             return False
         
-        print(f"✅ DATABASE_URL найден: {database_url[:50]}...")
+        print(f"OK: DATABASE_URL found: {database_url[:50]}...")
         
         # Тестируем подключение
         async with engine.begin() as conn:
             result = await conn.execute(text("SELECT 1"))
-            print("✅ Подключение к базе данных успешно")
+            print("OK: Database connection successful")
             
             # Проверяем существование таблиц
             result = await conn.execute(text("""
@@ -36,41 +36,41 @@ async def test_db_connection():
                 AND table_name IN ('users', 'meals', 'presets')
             """))
             tables = [row[0] for row in result.fetchall()]
-            print(f"✅ Найдены таблицы: {tables}")
+            print(f"OK: Found tables: {tables}")
             
         return True
         
     except Exception as e:
-        print(f"❌ Ошибка подключения к базе данных: {e}")
+        print(f"ERROR: Database connection error: {e}")
         return False
 
 async def test_bot_startup():
     """Тестирует инициализацию бота"""
-    print("\n🤖 Тестирование инициализации бота...")
+    print("\nTesting bot initialization...")
     
     try:
         # Проверяем токен бота
         tg_token = os.getenv('TG_TOKEN')
         if not tg_token:
-            print("❌ TG_TOKEN не найден в переменных окружения")
+            print("ERROR: TG_TOKEN not found in environment variables")
             return False
         
-        print(f"✅ TG_TOKEN найден: {tg_token[:20]}...")
+        print(f"OK: TG_TOKEN found: {tg_token[:20]}...")
         
         # Инициализируем базу данных
         await init_db()
-        print("✅ База данных инициализирована")
+        print("OK: Database initialized")
         
         return True
         
     except Exception as e:
-        print(f"❌ Ошибка инициализации бота: {e}")
+        print(f"ERROR: Bot initialization error: {e}")
         return False
 
 async def main():
     """Главная функция тестирования"""
     print("=" * 50)
-    print("🧪 ТЕСТИРОВАНИЕ ПОДКЛЮЧЕНИЙ")
+    print("TESTING CONNECTIONS")
     print("=" * 50)
     
     # Тестируем подключение к БД
@@ -80,15 +80,15 @@ async def main():
     bot_ok = await test_bot_startup()
     
     print("\n" + "=" * 50)
-    print("📊 РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ")
+    print("TEST RESULTS")
     print("=" * 50)
-    print(f"База данных: {'✅ OK' if db_ok else '❌ FAIL'}")
-    print(f"Инициализация бота: {'✅ OK' if bot_ok else '❌ FAIL'}")
+    print(f"Database: {'OK' if db_ok else 'FAIL'}")
+    print(f"Bot initialization: {'OK' if bot_ok else 'FAIL'}")
     
     if db_ok and bot_ok:
-        print("\n🎉 Все тесты пройдены! Бот должен запуститься успешно.")
+        print("\nAll tests passed! Bot should start successfully.")
     else:
-        print("\n⚠️  Есть проблемы, которые нужно исправить.")
+        print("\nThere are issues that need to be fixed.")
     
     # Закрываем соединения
     await engine.dispose()
