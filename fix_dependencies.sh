@@ -22,7 +22,7 @@ pip install --upgrade pip
 # Устанавливаем зависимости по одной, начиная с базовых
 echo "📥 Устанавливаем базовые зависимости..."
 pip install --no-cache-dir pydantic>=2.10.3
-pip install --no-cache-dir fastapi>=0.115,<0.120
+pip install --no-cache-dir fastapi>=0.115.0
 pip install --no-cache-dir aiogram>=3.4,<4
 pip install --no-cache-dir mistralai>=1.9,<2
 

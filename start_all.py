@@ -1,299 +1,324 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
-Простой скрипт для запуска всех сервисов Dieta Bot
-Использование: python start_all.py
+Простой скрипт для запуска всех сервисов диет-бота
 """
 
-import os
+import subprocess
 import sys
 import time
+import logging
 import signal
-import subprocess
-import threading
-from pathlib import Path
+import os
+import socket
+import psutil
+from threading import Thread
 
-class ServiceManager:
-    def __init__(self):
-        self.processes = {}
-        self.logs_dir = Path("logs")
-        self.logs_dir.mkdir(exist_ok=True)
-        
-    def log(self, message):
-        """Логирование с временной меткой"""
-        timestamp = time.strftime("%H:%M:%S")
-        print(f"[{timestamp}] {message}")
-        
-    def stop_processes(self):
-        """Остановка всех процессов"""
-        self.log("🛑 Останавливаем старые процессы...")
-        
-        # Останавливаем процессы по имени
-        processes_to_kill = [
-            "main.py", "improved_api_server.py", 
-            "npm start", "node", "nginx"
-        ]
-        
-        for proc_name in processes_to_kill:
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('start_all.log'),
+        logging.StreamHandler()
+    ]
+)
+
+def check_port_available(port, host='127.0.0.1'):
+    """Проверка доступности порта"""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(1)
+            result = s.connect_ex((host, port))
+            return result != 0
+    except Exception:
+        return False
+
+def kill_process_on_port(port):
+    """Убить процесс на порту"""
+    try:
+        for proc in psutil.process_iter(['pid', 'name', 'connections']):
             try:
-                subprocess.run(f"pkill -f '{proc_name}'", shell=True, capture_output=True)
-                self.log(f"✅ Остановлен: {proc_name}")
-            except:
-                pass
-                
+                connections = proc.info['connections']
+                if connections:
+                    for conn in connections:
+                        if conn.laddr.port == port:
+                            logging.info(f"Убиваю процесс {proc.info['name']} (PID: {proc.info['pid']}) на порту {port}")
+                            proc.terminate()
+                            proc.wait(timeout=5)
+                            return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+    except Exception as e:
+        logging.error(f"Ошибка при убийстве процесса на порту {port}: {e}")
+    return False
+
+def stop_old_processes():
+    """Остановка старых процессов"""
+    logging.info("🛑 Останавливаем старые процессы...")
+    
+    # Останавливаем процессы по портам
+    for port in [8000, 3000, 80]:
+        if not check_port_available(port):
+            kill_process_on_port(port)
+            time.sleep(1)
+    
+    # Останавливаем процессы по имени
+    try:
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmdline = proc.info['cmdline']
+                if cmdline:
+                    cmd_str = ' '.join(cmdline)
+                    if any(keyword in cmd_str for keyword in ['main.py', 'improved_api_server.py', 'npm start', 'nginx']):
+                        logging.info(f"Останавливаю: {proc.info['name']} (PID: {proc.info['pid']})")
+                        proc.terminate()
+                        proc.wait(timeout=5)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+    except Exception as e:
+        logging.error(f"Ошибка при остановке процессов: {e}")
+
+def start_api():
+    """Запуск API сервера"""
+    logging.info("🚀 Запуск API сервера...")
+    
+    if not check_port_available(8000):
+        kill_process_on_port(8000)
+        time.sleep(2)
+    
+    try:
+        process = subprocess.Popen(
+            [sys.executable, "improved_api_server.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        # Ждем немного для запуска
+        time.sleep(3)
+        
+        if process.poll() is None:
+            logging.info(f"✅ API сервер запущен (PID: {process.pid})")
+            return process
+        else:
+            stdout, stderr = process.communicate()
+            logging.error(f"❌ API сервер не запустился: {stderr}")
+            return None
+    except Exception as e:
+        logging.error(f"❌ Ошибка запуска API: {e}")
+        return None
+
+def start_frontend():
+    """Запуск фронтенда"""
+    logging.info("🌐 Запуск фронтенда...")
+    
+    if not check_port_available(3000):
+        kill_process_on_port(3000)
+        time.sleep(2)
+    
+    frontend_dir = "calorie-love-tracker"
+    if not os.path.exists(frontend_dir):
+        logging.error(f"❌ Директория {frontend_dir} не найдена")
+        return None
+    
+    try:
+        # Проверяем node_modules
+        if not os.path.exists(os.path.join(frontend_dir, "node_modules")):
+            logging.info("📦 Устанавливаем зависимости фронтенда...")
+            install_process = subprocess.run(
+                ["npm", "install"],
+                cwd=frontend_dir,
+                capture_output=True,
+                text=True
+            )
+            if install_process.returncode != 0:
+                logging.error(f"❌ Ошибка установки зависимостей: {install_process.stderr}")
+                return None
+        
+        process = subprocess.Popen(
+            ["npm", "start"],
+            cwd=frontend_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        # Ждем немного для запуска
+        time.sleep(5)
+        
+        if process.poll() is None:
+            logging.info(f"✅ Фронтенд запущен (PID: {process.pid})")
+            return process
+        else:
+            stdout, stderr = process.communicate()
+            logging.error(f"❌ Фронтенд не запустился: {stderr}")
+            return None
+    except Exception as e:
+        logging.error(f"❌ Ошибка запуска фронтенда: {e}")
+        return None
+
+def start_nginx():
+    """Запуск nginx"""
+    logging.info("🔧 Запуск nginx...")
+    
+    if not check_port_available(80):
+        kill_process_on_port(80)
+        time.sleep(2)
+    
+    nginx_conf = "nginx-prod.conf"
+    if not os.path.exists(nginx_conf):
+        logging.error(f"❌ Файл конфигурации {nginx_conf} не найден")
+        return None
+    
+    try:
+        # Копируем конфигурацию
+        subprocess.run(["cp", nginx_conf, "/etc/nginx/sites-available/tvoi-kalkulyator"], check=True)
+        subprocess.run(["ln", "-sf", "/etc/nginx/sites-available/tvoi-kalkulyator", "/etc/nginx/sites-enabled/"], check=True)
+        
+        # Проверяем конфигурацию
+        result = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
+        if result.returncode != 0:
+            logging.error(f"❌ Ошибка конфигурации nginx: {result.stderr}")
+            return None
+        
+        # Запускаем nginx
+        process = subprocess.Popen(
+            ["nginx"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
         time.sleep(2)
         
-    def start_api_server(self):
-        """Запуск API сервера"""
-        self.log("🌐 Запускаем API сервер на порту 8000...")
-        
-        try:
-            # Запускаем API сервер
-            api_process = subprocess.Popen(
-                [sys.executable, "improved_api_server.py"],
-                stdout=open(self.logs_dir / "api.log", "w"),
-                stderr=subprocess.STDOUT,
-                cwd=os.getcwd()
-            )
-            
-            self.processes['api'] = api_process
-            self.log(f"✅ API сервер запущен (PID: {api_process.pid})")
-            
-            # Ждем запуска
-            time.sleep(3)
-            
-            # Проверяем API
-            try:
-                import requests
-                response = requests.get("http://localhost:8000/health", timeout=5)
-                if response.status_code == 200:
-                    self.log("✅ API сервер работает")
-                    return True
-                else:
-                    self.log("❌ API сервер не отвечает")
-                    return False
-            except:
-                self.log("❌ API сервер не отвечает")
-                return False
-                
-        except Exception as e:
-            self.log(f"❌ Ошибка запуска API: {e}")
-            return False
-            
-    def start_frontend(self):
-        """Запуск фронтенда"""
-        self.log("🎨 Запускаем фронтенд...")
-        
-        frontend_dir = Path("calorie-love-tracker")
-        if not frontend_dir.exists():
-            self.log("❌ Папка фронтенда не найдена")
-            return False
-            
-        try:
-            # Переходим в папку фронтенда
-            os.chdir(frontend_dir)
-            
-            # Устанавливаем зависимости если нужно
-            if not Path("node_modules").exists():
-                self.log("📦 Устанавливаем зависимости фронтенда...")
-                subprocess.run(["npm", "install"], check=True)
-                
-            # Собираем проект
-            self.log("🔨 Собираем фронтенд...")
-            subprocess.run(["npm", "run", "build"], check=True)
-            
-            # Запускаем фронтенд
-            self.log("🌐 Запускаем фронтенд на порту 3000...")
-            frontend_process = subprocess.Popen(
-                ["npm", "start"],
-                stdout=open(Path("../logs/frontend.log"), "w"),
-                stderr=subprocess.STDOUT
-            )
-            
-            self.processes['frontend'] = frontend_process
-            self.log(f"✅ Фронтенд запущен (PID: {frontend_process.pid})")
-            
-            # Возвращаемся в корневую папку
-            os.chdir("..")
-            
-            # Ждем запуска
-            time.sleep(5)
-            
-            # Проверяем фронтенд
-            try:
-                import requests
-                response = requests.get("http://localhost:3000", timeout=5)
-                if response.status_code == 200:
-                    self.log("✅ Фронтенд работает")
-                    return True
-                else:
-                    self.log("❌ Фронтенд не отвечает")
-                    return False
-            except:
-                self.log("❌ Фронтенд не отвечает")
-                return False
-                
-        except Exception as e:
-            self.log(f"❌ Ошибка запуска фронтенда: {e}")
-            os.chdir("..")  # Возвращаемся в корневую папку
-            return False
-            
-    def setup_nginx(self):
-        """Настройка nginx"""
-        self.log("🔧 Настраиваем nginx...")
-        
-        try:
-            # Копируем конфигурацию
-            subprocess.run([
-                "cp", "nginx-prod.conf", 
-                "/etc/nginx/sites-available/tvoi-kalkulyator"
-            ], check=True)
-            
-            # Создаем символическую ссылку
-            subprocess.run([
-                "ln", "-sf", 
-                "/etc/nginx/sites-available/tvoi-kalkulyator",
-                "/etc/nginx/sites-enabled/"
-            ], check=True)
-            
-            # Удаляем дефолтный сайт
-            try:
-                os.remove("/etc/nginx/sites-enabled/default")
-            except:
-                pass
-                
-            # Проверяем конфигурацию
-            subprocess.run(["nginx", "-t"], check=True)
-            
-            # Перезапускаем nginx
-            subprocess.run(["systemctl", "restart", "nginx"], check=True)
-            
-            self.log("✅ Nginx настроен и перезапущен")
-            return True
-            
-        except Exception as e:
-            self.log(f"❌ Ошибка настройки nginx: {e}")
-            return False
-            
-    def start_bot(self):
-        """Запуск Telegram бота"""
-        self.log("🤖 Запускаем Telegram бота...")
-        
-        try:
-            bot_process = subprocess.Popen(
-                [sys.executable, "main.py"],
-                stdout=open(self.logs_dir / "bot.log", "w"),
-                stderr=subprocess.STDOUT,
-                cwd=os.getcwd()
-            )
-            
-            self.processes['bot'] = bot_process
-            self.log(f"✅ Бот запущен (PID: {bot_process.pid})")
-            return True
-            
-        except Exception as e:
-            self.log(f"❌ Ошибка запуска бота: {e}")
-            return False
-            
-    def save_pids(self):
-        """Сохранение PID процессов"""
-        for name, process in self.processes.items():
-            with open(self.logs_dir / f"{name}.pid", "w") as f:
-                f.write(str(process.pid))
-                
-    def check_services(self):
-        """Проверка всех сервисов"""
-        self.log("🔍 Проверяем все сервисы...")
-        
-        checks = [
-            ("API (порт 8000)", "http://localhost:8000/health"),
-            ("Фронтенд (порт 3000)", "http://localhost:3000"),
-            ("Nginx (порт 80)", "http://localhost")
-        ]
-        
-        for name, url in checks:
-            try:
-                import requests
-                if "health" in url:
-                    response = requests.get(url, timeout=5)
-                    status = response.text if response.status_code == 200 else "НЕ РАБОТАЕТ"
-                else:
-                    response = requests.get(url, timeout=5)
-                    status = response.status_code if response.status_code == 200 else "НЕ РАБОТАЕТ"
-                    
-                self.log(f"{name}: {status}")
-            except:
-                self.log(f"{name}: НЕ РАБОТАЕТ")
-                
-    def signal_handler(self, signum, frame):
-        """Обработчик сигналов для корректного завершения"""
-        self.log("🛑 Получен сигнал завершения, останавливаем сервисы...")
-        self.stop_processes()
-        sys.exit(0)
-        
-    def run(self):
-        """Основной метод запуска"""
-        self.log("🚀 Запуск Dieta Bot...")
-        
-        # Регистрируем обработчик сигналов
-        signal.signal(signal.SIGINT, self.signal_handler)
-        signal.signal(signal.SIGTERM, self.signal_handler)
-        
-        # Останавливаем старые процессы
-        self.stop_processes()
-        
-        # Запускаем сервисы
-        success = True
-        
-        if not self.start_api_server():
-            success = False
-            
-        if not self.start_frontend():
-            success = False
-            
-        if not self.setup_nginx():
-            success = False
-            
-        if not self.start_bot():
-            success = False
-            
-        if success:
-            # Сохраняем PID
-            self.save_pids()
-            
-            # Проверяем сервисы
-            self.check_services()
-            
-            self.log("")
-            self.log("✅ Все сервисы запущены!")
-            self.log("")
-            self.log("📋 Информация:")
-            self.log("  API сервер: http://localhost:8000")
-            self.log("  Фронтенд: http://localhost:3000")
-            self.log("  Веб-сайт: http://tvoi-kalkulyator.ru")
-            self.log("  Альтернативный домен: http://твой-калькулятор.рф")
-            self.log("")
-            self.log("📊 Логи:")
-            self.log("  API: tail -f logs/api.log")
-            self.log("  Фронтенд: tail -f logs/frontend.log")
-            self.log("  Бот: tail -f logs/bot.log")
-            self.log("  Nginx: tail -f /var/log/nginx/tvoi-kalkulyator.error.log")
-            self.log("")
-            self.log("🛑 Для остановки: Ctrl+C")
-            
-            # Ждем завершения
-            try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                self.log("🛑 Остановка по запросу пользователя...")
-                self.stop_processes()
+        if process.poll() is None:
+            logging.info(f"✅ Nginx запущен (PID: {process.pid})")
+            return process
         else:
-            self.log("❌ Не все сервисы запустились")
-            self.stop_processes()
-            sys.exit(1)
+            stdout, stderr = process.communicate()
+            logging.error(f"❌ Nginx не запустился: {stderr}")
+            return None
+    except Exception as e:
+        logging.error(f"❌ Ошибка запуска nginx: {e}")
+        return None
+
+def start_bot():
+    """Запуск бота"""
+    logging.info("🤖 Запуск бота...")
+    
+    try:
+        process = subprocess.Popen(
+            [sys.executable, "main.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        # Ждем немного для запуска
+        time.sleep(3)
+        
+        if process.poll() is None:
+            logging.info(f"✅ Бот запущен (PID: {process.pid})")
+            return process
+        else:
+            stdout, stderr = process.communicate()
+            logging.error(f"❌ Бот не запустился: {stderr}")
+            return None
+    except Exception as e:
+        logging.error(f"❌ Ошибка запуска бота: {e}")
+        return None
+
+def check_services():
+    """Проверка работы сервисов"""
+    logging.info("🔍 Проверяем сервисы...")
+    
+    services = [
+        ("API", "http://localhost:8000/health"),
+        ("Фронтенд", "http://localhost:3000"),
+        ("Nginx", "http://localhost")
+    ]
+    
+    for name, url in services:
+        try:
+            result = subprocess.run(
+                ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", url],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip() in ["200", "301", "302"]:
+                logging.info(f"✅ {name} работает")
+            else:
+                logging.warning(f"⚠️ {name} не отвечает")
+        except Exception as e:
+            logging.warning(f"⚠️ Не удалось проверить {name}: {e}")
+
+def main():
+    """Основная функция"""
+    logging.info("🚀 Запуск Dieta Bot...")
+    
+    # Останавливаем старые процессы
+    stop_old_processes()
+    
+    # Запускаем сервисы
+    processes = {}
+    
+    # API
+    api_process = start_api()
+    if api_process:
+        processes['api'] = api_process
+    
+    # Фронтенд
+    frontend_process = start_frontend()
+    if frontend_process:
+        processes['frontend'] = frontend_process
+    
+    # Nginx
+    nginx_process = start_nginx()
+    if nginx_process:
+        processes['nginx'] = nginx_process
+    
+    # Бот
+    bot_process = start_bot()
+    if bot_process:
+        processes['bot'] = bot_process
+    
+    # Проверяем сервисы
+    time.sleep(5)
+    check_services()
+    
+    logging.info("🎉 Все сервисы запущены!")
+    logging.info("📊 Логи:")
+    logging.info("  API: tail -f logs/api.log")
+    logging.info("  Фронтенд: tail -f logs/frontend.log")
+    logging.info("  Бот: tail -f logs/bot.log")
+    logging.info("  Nginx: tail -f /var/log/nginx/tvoi-kalkulyator.error.log")
+    logging.info("🌐 Сайт: http://tvoi-kalkulyator.ru")
+    logging.info("🤖 Бот: @tvoy_diet_bot")
+    
+    try:
+        # Ждем сигнала завершения
+        while True:
+            time.sleep(1)
+            # Проверяем, что все процессы еще работают
+            for name, process in processes.items():
+                if process.poll() is not None:
+                    logging.warning(f"⚠️ Процесс {name} завершился")
+    except KeyboardInterrupt:
+        logging.info("🛑 Получен сигнал завершения...")
+    finally:
+        # Останавливаем все процессы
+        logging.info("🛑 Останавливаем все процессы...")
+        for name, process in processes.items():
+            if process and process.poll() is None:
+                logging.info(f"Останавливаю {name}...")
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+        
+        logging.info("✅ Все процессы остановлены")
 
 if __name__ == "__main__":
-    manager = ServiceManager()
-    manager.run() 
+    main() 
