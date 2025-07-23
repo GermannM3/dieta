@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 from yookassa import Configuration, Payment
-from yookassa.domain.exceptions import YooKassaError
+from yookassa.domain.exceptions.api_error import ApiError as YooKassaError
 from database.init_database import async_session, Subscription
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
