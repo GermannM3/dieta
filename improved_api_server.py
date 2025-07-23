@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Header, Depends
+from fastapi import FastAPI, HTTPException, Query, Header, Depends, Request
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -9,6 +9,7 @@ import os
 import requests
 import asyncio
 import logging
+import signal
 from dotenv import load_dotenv
 from api.ai_api.generate_text import translate
 import re
@@ -24,6 +25,17 @@ from database.init_database import WebUser, WebProfile
 from components.payment_system.payment_operations import check_premium
 
 load_dotenv()
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('api_server.log'),
+        logging.StreamHandler()
+    ]
+)
+
 # Отключаем CalorieNinjas API
 # CALORIE_NINJAS_API_KEY = os.getenv("CALORIE_NINJAS_API_KEY")
 # if not CALORIE_NINJAS_API_KEY:
@@ -46,6 +58,23 @@ app.add_middleware(
 gigachat_api = GigaChatAPI()
 nutrition_api = NutritionAPI()
 
+# Создаем сессию после инициализации engine
+async_session = async_sessionmaker(engine, expire_on_commit=False)
+
+# Флаг для graceful shutdown
+shutdown_event = asyncio.Event()
+
+def signal_handler(signum, frame):
+    """Обработчик сигналов для graceful shutdown"""
+    logging.info(f"Получен сигнал {signum}, начинаю graceful shutdown API сервера...")
+    shutdown_event.set()
+
+# Регистрируем обработчики сигналов
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+if hasattr(signal, 'SIGBREAK'):
+    signal.signal(signal.SIGBREAK, signal_handler)
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
@@ -57,9 +86,6 @@ async def health_check():
             return {"status": "healthy", "database": "connected"}
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
-
-# Создаем сессию после инициализации engine
-async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 def get_moscow_time():
     """Получает текущее время в Москве"""
@@ -85,21 +111,34 @@ async def reset_daily_water():
 
 async def daily_reset_task():
     """Фоновая задача для сброса данных в полночь"""
-    while True:
+    while not shutdown_event.is_set():
         try:
             await reset_daily_water()
-            # Проверяем каждую минуту
-            await asyncio.sleep(60)
+            # Проверяем каждую минуту или до shutdown
+            try:
+                await asyncio.wait_for(shutdown_event.wait(), timeout=60)
+            except asyncio.TimeoutError:
+                pass
         except Exception as e:
             logging.error(f"Ошибка в задаче сброса данных: {e}")
-            await asyncio.sleep(60)
+            try:
+                await asyncio.wait_for(shutdown_event.wait(), timeout=60)
+            except asyncio.TimeoutError:
+                pass
 
 @app.on_event("startup")
 async def startup_event():
     logging.info("🚀 API сервер запущен!")
-    
-    # Запускаем фоновую задачу для сброса воды
+    # Запускаем фоновую задачу
     asyncio.create_task(daily_reset_task())
+
+@app.on_event("shutdown")
+async def shutdown_event_handler():
+    logging.info("🛑 API сервер останавливается...")
+    shutdown_event.set()
+    # Даем время на завершение операций
+    await asyncio.sleep(2)
+    logging.info("✅ API сервер остановлен")
 
 # Модели данных
 class MealIn(BaseModel):
@@ -844,6 +883,110 @@ async def toggle_user_premium(
         await session.commit()
         
         return {"success": True, "message": f"Премиум {'активирован' if premium else 'деактивирован'}"}
+
+# ===== YOOKASSA WEBHOOK =====
+
+@app.post("/api/payment/yookassa/webhook")
+async def yookassa_webhook(request: Request):
+    """Webhook для получения уведомлений от YooKassa"""
+    try:
+        # Получаем данные от YooKassa
+        data = await request.json()
+        logging.info(f"Получен webhook от YooKassa: {data}")
+        
+        # Проверяем, что это уведомление о платеже
+        if data.get("event") == "payment.succeeded":
+            payment_id = data["object"]["id"]
+            metadata = data["object"].get("metadata", {})
+            user_id = int(metadata.get("user_id"))
+            subscription_type = metadata.get("subscription_type")
+            
+            if user_id and subscription_type:
+                # Подтверждаем платеж и активируем подписку
+                from components.payment_system.payment_operations import PaymentManager
+                
+                success = await PaymentManager.confirm_payment(payment_id)
+                if success:
+                    logging.info(f"Подписка активирована для пользователя {user_id}, тип: {subscription_type}")
+                    
+                    # Обновляем статус пользователя в основной таблице
+                    async with async_session() as session:
+                        user = await session.execute(
+                            select(User).where(User.tg_id == user_id)
+                        )
+                        user = user.scalar_one_or_none()
+                        if user:
+                            user.is_premium = True
+                            await session.commit()
+                            logging.info(f"Пользователь {user_id} получил премиум статус")
+                    
+                    return {"status": "success", "message": "Payment confirmed and subscription activated"}
+                else:
+                    logging.error(f"Не удалось подтвердить платеж {payment_id}")
+                    return {"status": "error", "message": "Failed to confirm payment"}
+            else:
+                logging.error(f"Отсутствуют user_id или subscription_type в метаданных: {metadata}")
+                return {"status": "error", "message": "Missing user_id or subscription_type"}
+        else:
+            logging.info(f"Получено уведомление другого типа: {data.get('event')}")
+            return {"status": "ignored", "message": "Event type not handled"}
+            
+    except Exception as e:
+        logging.error(f"Ошибка обработки webhook YooKassa: {e}")
+        return {"status": "error", "message": str(e)}
+
+# ===== ПЛАТЕЖНЫЕ ENDPOINTS =====
+
+@app.post("/api/payment/create")
+async def create_payment(request: Request):
+    """Создание платежа через YooKassa"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        subscription_type = data.get("subscription_type")
+        
+        if not user_id or not subscription_type:
+            raise HTTPException(status_code=400, detail="Missing user_id or subscription_type")
+        
+        from components.payment_system.payment_operations import PaymentManager
+        payment_info = await PaymentManager.create_payment(user_id, subscription_type)
+        
+        return payment_info
+        
+    except Exception as e:
+        logging.error(f"Ошибка создания платежа: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/payment/status/{user_id}")
+async def get_payment_status(user_id: int):
+    """Получение статуса подписки пользователя"""
+    try:
+        from components.payment_system.payment_operations import PaymentManager
+        
+        # Проверяем подписку диетолога
+        diet_consultant = await PaymentManager.check_subscription(user_id, 'diet_consultant')
+        menu_generator = await PaymentManager.check_subscription(user_id, 'menu_generator')
+        
+        # Проверяем общий премиум статус
+        async with async_session() as session:
+            user = await session.execute(
+                select(User).where(User.tg_id == user_id)
+            )
+            user = user.scalar_one_or_none()
+            is_premium = user.is_premium if user else False
+        
+        return {
+            "user_id": user_id,
+            "is_premium": is_premium,
+            "subscriptions": {
+                "diet_consultant": diet_consultant,
+                "menu_generator": menu_generator
+            }
+        }
+        
+    except Exception as e:
+        logging.error(f"Ошибка получения статуса платежа: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from yookassa import Configuration, Payment
 from yookassa.domain.exceptions import YooKassaError
-from database.init_database import async_session_maker, Subscription
+from database.init_database import async_session, Subscription
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,7 +72,7 @@ class PaymentManager:
             )
             
             # Сохраняем информацию о подписке в БД
-            async with async_session_maker() as session:
+            async with async_session() as session:
                 subscription = Subscription(
                     user_id=user_id,
                     subscription_type=subscription_type,
@@ -119,7 +119,7 @@ class PaymentManager:
             
             if payment.status == 'succeeded':
                 # Обновляем статус подписки в БД
-                async with async_session_maker() as session:
+                async with async_session() as session:
                     subscription = await session.execute(
                         select(Subscription).where(Subscription.payment_id == payment_id)
                     )
@@ -156,7 +156,7 @@ class PaymentManager:
             bool: True если подписка активна
         """
         try:
-            async with async_session_maker() as session:
+            async with async_session() as session:
                 # Ищем активную подписку
                 subscription = await session.execute(
                     select(Subscription).where(
@@ -189,7 +189,7 @@ class PaymentManager:
             dict: Информация о подписке или None
         """
         try:
-            async with async_session_maker() as session:
+            async with async_session() as session:
                 subscription = await session.execute(
                     select(Subscription).where(
                         and_(

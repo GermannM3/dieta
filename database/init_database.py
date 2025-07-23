@@ -218,11 +218,7 @@ engine = create_async_engine(
         "server_settings": {
             "application_name": "diet_bot"
         },
-        "command_timeout": 30,   # Увеличиваем таймаут выполнения команд
-        "connect_timeout": 10,   # Таймаут подключения
-        "keepalives_idle": 30,   # Отправляем keepalive каждые 30 секунд
-        "keepalives_interval": 10,  # Интервал между keepalive
-        "keepalives_count": 5    # Количество попыток keepalive
+        "command_timeout": 30   # Увеличиваем таймаут выполнения команд
     }
 )
 async_session = async_sessionmaker(
