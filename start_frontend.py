@@ -36,14 +36,15 @@ def start_frontend():
                 logging.error(f"❌ Ошибка установки зависимостей: {install_process.stderr}")
                 return False
         
-        # Запускаем фронтенд
-        logging.info("🌐 Запускаем фронтенд...")
+        # Запускаем фронтенд на порту 3000
+        logging.info("🌐 Запускаем фронтенд на порту 3000...")
         process = subprocess.Popen(
-            ["npm", "start"],
+            ["PORT=3000", "npm", "start"],
             cwd=frontend_dir,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            env={**os.environ, "PORT": "3000"}
         )
         
         # Ждем запуска
