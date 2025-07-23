@@ -51,7 +51,8 @@ async def answer_to_text_prompt(main_prompt: str, tg_id: int):
         chat_response = await client.chat.complete_async(
             model = model,
             messages = prompt,
-            max_tokens=1600
+            max_tokens=1600,
+            temperature=0.1
         )
     except:
         return 'Слишком много запросов на сервер. Попробуйте позже.'
@@ -98,37 +99,34 @@ async def answer_to_view_prompt(message: Message):
         chat_response = await client.chat.complete_async(
             model=model,
             messages=prompt,
-            max_tokens=1600
+            max_tokens=1600,
+            temperature=0.1
         )
     except:
         return 'Слишком много запросов на сервер. Попробуйте позже.'
     
-    chat_response = chat_response.choices[0].message.content
-    os.remove(f'images/image_{message.from_user.id}.jpg')
+    response = chat_response.choices[0].message.content
+    new_context = prompt
+    new_context.append({'role':'system', 'content':response})
     
-    new_context = prompt[:-1]
-    new_context.append({'role':'user', 'content':message_text})
-    new_context.append({'role':'system', 'content':chat_response})
     await update_context(tg_id=message.from_user.id, context=new_context)
-
-    return chat_response
+    return response
 
 async def translate(text: str, source_lang: str, target_lang: str) -> str:
-    """
-    Универсальный переводчик через Mistral (русский <-> английский).
-    source_lang: 'ru' или 'en'
-    target_lang: 'ru' или 'en'
-    """
-    if source_lang == target_lang:
-        return text
-    if source_lang == 'ru' and target_lang == 'en':
-        prompt = f"Переведи на английский: {text}"
-    elif source_lang == 'en' and target_lang == 'ru':
-        prompt = f"Переведи на русский: {text}"
-    else:
-        prompt = f"Translate from {source_lang} to {target_lang}: {text}"
+    """Перевод текста с помощью Mistral AI"""
     try:
-        result = await answer_to_text_prompt(prompt, tg_id=0)
-        return result.strip()
-    except Exception:
-        return text
+        prompt = f"Переведи следующий текст с {source_lang} на {target_lang}. Переведи только текст, без дополнительных комментариев:\n\n{text}"
+        
+        chat_response = await client.chat.complete_async(
+            model=model,
+            messages=[{
+                'role': 'user',
+                'content': prompt
+            }],
+            max_tokens=1000,
+            temperature=0.1
+        )
+        
+        return chat_response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Ошибка перевода: {str(e)}"

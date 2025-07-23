@@ -760,102 +760,90 @@ async def get_smtp_config():
 # ===== АДМИН ПАНЕЛЬ API =====
 
 @app.get("/api/admin/web-users")
-async def get_web_users(current_user: dict = Depends(get_current_user)):
-    """Получение списка веб-пользователей (только для админа)"""
-    if current_user.get('email') != 'germannm@vk.com':
+async def get_web_users(current_user: User = Depends(get_current_user)):
+    """Получение списка веб-пользователей для админа"""
+    if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
     async with async_session() as session:
-        result = await session.execute(
-            select(WebUser, WebProfile)
-            .outerjoin(WebProfile, WebUser.id == WebProfile.user_id)
+        users = await session.execute(
+            select(User).where(User.tg_id.is_(None))
         )
-        users_data = result.fetchall()
+        web_users = users.scalars().all()
         
-        users = []
-        for user, profile in users_data:
-            users.append({
-                'id': user.id,
-                'email': user.email,
-                'name': profile.name if profile else None,
-                'is_confirmed': user.is_confirmed,
-                'is_premium': getattr(profile, 'is_premium', False) if profile else False,
-                'created_at': user.created_at.isoformat() if user.created_at else None,
-                'score': profile.score if profile else 0,
-                'streak_days': profile.streak_days if profile else 0
-            })
-        
-        return {"users": users}
+        return {
+            "users": [
+                {
+                    "id": user.id,
+                    "email": user.email,
+                    "name": user.name,
+                    "is_premium": user.is_premium,
+                    "created_at": user.created_at.isoformat() if user.created_at else None
+                }
+                for user in web_users
+            ]
+        }
 
 @app.get("/api/admin/telegram-users")
-async def get_telegram_users(current_user: dict = Depends(get_current_user)):
-    """Получение списка телеграм-пользователей (только для админа)"""
-    if current_user.get('email') != 'germannm@vk.com':
+async def get_telegram_users(current_user: User = Depends(get_current_user)):
+    """Получение списка Telegram пользователей для админа"""
+    if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
     async with async_session() as session:
-        result = await session.execute(select(User))
-        users = result.scalars().all()
+        users = await session.execute(
+            select(User).where(User.tg_id.is_not(None))
+        )
+        tg_users = users.scalars().all()
         
-        users_data = []
-        for user in users:
-            users_data.append({
-                'tg_id': user.tg_id,
-                'name': user.name,
-                'is_premium': check_premium(user.tg_id),
-                'score': user.score or 0,
-                'streak_days': user.streak_days or 0,
-                'water_ml': user.water_ml or 0,
-                'body_fat_percent': user.body_fat_percent,
-                'goal_fat_percent': user.goal_fat_percent
-            })
-        
-        return {"users": users_data}
+        return {
+            "users": [
+                {
+                    "tg_id": user.tg_id,
+                    "name": user.name,
+                    "is_premium": user.is_premium,
+                    "score": user.score,
+                    "streak_days": user.streak_days,
+                    "created_at": user.created_at.isoformat() if user.created_at else None
+                }
+                for user in tg_users
+            ]
+        }
 
 @app.post("/api/admin/toggle-premium")
-async def toggle_premium(
-    data: dict,
-    current_user: dict = Depends(get_current_user)
+async def toggle_user_premium(
+    request: dict,
+    current_user: User = Depends(get_current_user)
 ):
-    """Переключение премиум-статуса пользователя (только для админа)"""
-    if current_user.get('email') != 'germannm@vk.com':
+    """Переключение премиум статуса пользователя"""
+    if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
-    user_id = data.get('user_id')
-    user_type = data.get('user_type')  # 'web' или 'telegram'
-    premium = data.get('premium', False)
+    user_id = request.get("user_id")
+    user_type = request.get("user_type")
+    premium = request.get("premium")
     
-    if not user_id or not user_type:
+    if not user_id or user_type not in ["web", "telegram"]:
         raise HTTPException(status_code=400, detail="Неверные параметры")
     
     async with async_session() as session:
-        if user_type == 'web':
-            # Для веб-пользователей обновляем профиль
-            result = await session.execute(
-                select(WebProfile).where(WebProfile.user_id == user_id)
+        if user_type == "web":
+            user = await session.execute(
+                select(User).where(User.id == user_id, User.tg_id.is_(None))
             )
-            profile = result.scalar_one_or_none()
-            
-            if not profile:
-                # Создаем профиль если не существует
-                profile = WebProfile(user_id=user_id, is_premium=premium)
-                session.add(profile)
-            else:
-                profile.is_premium = premium
-            
-            await session.commit()
-            
-        elif user_type == 'telegram':
-            # Для телеграм-пользователей используем функцию check_premium
-            # Здесь нужно добавить поле is_premium в модель User или создать отдельную таблицу
-            # Пока используем существующую логику
-            user = await session.get(User, user_id)
-            if user:
-                # Добавляем поле is_premium в модель User
-                user.is_premium = premium
-                await session.commit()
+        else:
+            user = await session.execute(
+                select(User).where(User.tg_id == user_id)
+            )
         
-        return {"success": True, "premium": premium}
+        user = user.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+        user.is_premium = premium
+        await session.commit()
+        
+        return {"success": True, "message": f"Премиум {'активирован' if premium else 'деактивирован'}"}
 
 if __name__ == "__main__":
     import uvicorn
