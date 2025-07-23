@@ -34,47 +34,48 @@ def check_port_available(port, host='127.0.0.1'):
         return False
 
 def kill_process_on_port(port):
-    """Убить процесс на указанном порту"""
+    """Убить процесс на порту"""
     try:
         for proc in psutil.process_iter(['pid', 'name', 'connections']):
             try:
-                for conn in proc.info['connections']:
-                    if conn.laddr.port == port:
-                        logging.info(f"Убиваю процесс {proc.info['name']} (PID: {proc.info['pid']}) на порту {port}")
-                        proc.terminate()
-                        proc.wait(timeout=5)
-                        return True
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
+                connections = proc.info['connections']
+                if connections:
+                    for conn in connections:
+                        if conn.laddr.port == port:
+                            logging.info(f"Убиваю процесс {proc.info['name']} (PID: {proc.info['pid']}) на порту {port}")
+                            proc.terminate()
+                            proc.wait(timeout=5)
+                            return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
     except Exception as e:
         logging.error(f"Ошибка при убийстве процесса на порту {port}: {e}")
     return False
 
 def selective_stop_processes():
-    """Остановка процессов по имени"""
-    processes_to_kill = ['python', 'node', 'npm', 'nginx']
-    
-    for proc in psutil.process_iter(['pid', 'name']):
-        try:
-            proc_name = proc.info['name'].lower()
-            for target in processes_to_kill:
-                if target in proc_name:
-                    logging.info(f"Останавливаю процесс: {proc.info['name']} (PID: {proc.info['pid']})")
-                    proc.terminate()
-                    try:
-                        proc.wait(timeout=3)
-                    except psutil.TimeoutExpired:
-                        proc.kill()
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
+    """Остановка старых процессов"""
+    try:
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmdline = proc.info['cmdline']
+                if cmdline:
+                    cmd_str = ' '.join(cmdline)
+                    if any(keyword in cmd_str for keyword in ['main.py', 'improved_api_server.py', 'npm start', 'nginx']):
+                        logging.info(f"Останавливаю старый процесс: {proc.info['name']} (PID: {proc.info['pid']})")
+                        proc.terminate()
+                        proc.wait(timeout=5)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+    except Exception as e:
+        logging.error(f"Ошибка при остановке старых процессов: {e}")
 
 class ServiceManager:
     def __init__(self):
         self.processes = {}
+        self.running = True
         self.restart_attempts = {'api': 0, 'bot': 0, 'frontend': 0, 'nginx': 0}
         self.max_restart_attempts = 3
-        self.running = True
-        
+
     def start_api_server(self):
         """Запуск API сервера"""
         try:
@@ -83,13 +84,9 @@ class ServiceManager:
                 logging.warning("Порт 8000 занят, освобождаю...")
                 kill_process_on_port(8000)
                 time.sleep(2)
-                
-                # Проверяем еще раз
-                if not check_port_available(8000):
-                    logging.error("Не удалось освободить порт 8000")
-                    return False
             
             logging.info("Запуск API сервера...")
+            
             process = subprocess.Popen(
                 [sys.executable, "improved_api_server.py"],
                 stdout=subprocess.PIPE,
@@ -100,24 +97,16 @@ class ServiceManager:
             )
             self.processes['api'] = process
             logging.info(f"API сервер запущен (PID: {process.pid})")
-            
-            # Ждем немного и проверяем, что процесс действительно запустился
-            time.sleep(3)
-            if process.poll() is not None:
-                stdout, stderr = process.communicate()
-                if stderr:
-                    logging.error(f"API сервер упал сразу после запуска: {stderr}")
-                return False
-            
             return True
         except Exception as e:
             logging.error(f"Ошибка запуска API сервера: {e}")
             return False
-    
+
     def start_bot(self):
         """Запуск Telegram бота"""
         try:
             logging.info("Запуск Telegram бота...")
+            
             process = subprocess.Popen(
                 [sys.executable, "main.py"],
                 stdout=subprocess.PIPE,
