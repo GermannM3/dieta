@@ -13,12 +13,18 @@ cd /opt/dieta
 source venv/bin/activate
 ```
 
-### 3. Установите зависимости (если нужно)
+### 3. Диагностика проблем (если нужно)
 ```bash
-pip install -r requirements.txt
+python diagnose.py
 ```
 
-### 4. Запустите все сервисы
+### 4. Исправление зависимостей (если нужно)
+```bash
+chmod +x fix_dependencies.sh
+./fix_dependencies.sh
+```
+
+### 5. Запустите все сервисы
 ```bash
 python start_all.py
 ```
@@ -37,6 +43,9 @@ python start_all.py
 ## 📊 Логи:
 
 ```bash
+# Общий лог запуска
+tail -f start_all.log
+
 # API
 tail -f logs/api.log
 
@@ -62,6 +71,12 @@ curl -I http://localhost:3000
 # Сайт
 curl -I http://tvoi-kalkulyator.ru
 ```
+
+## 🚨 Если что-то не работает:
+
+1. **Запустите диагностику**: `python diagnose.py`
+2. **Проверьте логи**: `tail -f start_all.log`
+3. **Перезапустите**: `python start_all.py`
 
 ---
 
