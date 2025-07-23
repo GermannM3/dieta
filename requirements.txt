@@ -12,7 +12,7 @@ bcrypt
 pyjwt
 email-validator
 yookassa>=2.4,<3
-mistralai==0.4.2
+mistralai>=1.0.0
 vosk
 aiofiles>=23,<24
 psutil==5.9.8

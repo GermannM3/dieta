@@ -47,7 +47,7 @@ class GigaChatAPI:
             return await self.get_access_token() is not None
         return True
     
-    async def chat_completion(self, messages: List[Dict], model: str = "GigaChat", temperature: float = 0.7) -> Optional[str]:
+    async def chat_completion(self, messages: List[Dict], model: str = "GigaChat", temperature: float = 0.1) -> Optional[str]:
         """Асинхронная отправка запроса к GigaChat API"""
         if not await self.ensure_token():
             return None
