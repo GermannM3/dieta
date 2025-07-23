@@ -194,7 +194,7 @@ http {
 
     server {
         listen 80;
-        server_name localhost;
+        server_name 5.129.198.80;
 
         # Проксирование API запросов
         location /api {

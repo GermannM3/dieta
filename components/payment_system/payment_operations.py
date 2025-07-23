@@ -218,3 +218,46 @@ class PaymentManager:
             return None
 
 
+def check_premium(tg_id: int) -> bool:
+    """
+    Проверяет премиум статус пользователя
+    
+    Args:
+        tg_id: ID пользователя в Telegram
+    
+    Returns:
+        bool: True если у пользователя есть премиум
+    """
+    try:
+        import asyncio
+        from database.init_database import async_session_maker
+        from database.crud import get_user_by_tg_id
+        
+        # Создаем новый event loop если его нет
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        async def _check_premium():
+            async with async_session_maker() as session:
+                user = await get_user_by_tg_id(session, tg_id)
+                if user:
+                    # Проверяем поле is_premium в таблице users
+                    return getattr(user, 'is_premium', False)
+                return False
+        
+        # Запускаем асинхронную функцию
+        if loop.is_running():
+            # Если loop уже запущен, используем asyncio.create_task
+            task = asyncio.create_task(_check_premium())
+            return task.result()
+        else:
+            return loop.run_until_complete(_check_premium())
+            
+    except Exception as e:
+        print(f"Ошибка проверки премиум статуса: {e}")
+        return False
+
+

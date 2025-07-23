@@ -19,7 +19,10 @@ python start_all_services.py
 echo.
 echo ✅ Все сервисы запущены!
 echo 📱 Бот: @tvoy_diet_bot
-echo 🌐 Сайт: http://localhost
-echo 📊 API: http://localhost:8000/docs
+echo 🌐 Сайт: http://5.129.198.80
+echo 📊 API: http://5.129.198.80:8000/docs
+echo 💎 Премиум функции:
+echo    • Распознавание еды на фото
+echo    • Индивидуальный план питания
 echo.
 pause 
