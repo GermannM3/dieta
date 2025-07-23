@@ -1,5 +1,5 @@
 [Unit]
-Description=Dieta Bot Service
+Description=Dieta Bot Production Service
 After=network.target
 Wants=network.target
 
@@ -9,7 +9,7 @@ User=root
 Group=root
 WorkingDirectory=/opt/dieta
 Environment=PATH=/opt/dieta/venv/bin
-ExecStart=/opt/dieta/venv/bin/python /opt/dieta/start_all_services.py
+ExecStart=/opt/dieta/venv/bin/python /opt/dieta/start_production.sh
 Restart=always
 RestartSec=10
 StandardOutput=journal
