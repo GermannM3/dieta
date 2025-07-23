@@ -104,8 +104,8 @@ def check_env_file():
         with open(env_file, 'r') as f:
             content = f.read()
             required_vars = [
-                'BOT_TOKEN', 'DATABASE_URL', 'YOOKASSA_SHOP_ID', 
-                'YOOKASSA_SECRET_KEY', 'GIGACHAT_API_KEY'
+                'TG_TOKEN', 'DATABASE_URL', 'YOOKASSA_SHOP_ID', 
+                'YOOKASSA_SECRET_KEY', 'GIGACHAT_ACCESS_TOKEN'
             ]
             
             missing_vars = []
@@ -130,7 +130,7 @@ def check_database_connection():
         from sqlalchemy import text
         
         # Пробуем подключиться
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             result = conn.execute(text("SELECT 1"))
             logging.info("🗄️ Database: ✅")
             return True

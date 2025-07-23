@@ -36,16 +36,15 @@ def check_port_available(port, host='127.0.0.1'):
 def kill_process_on_port(port):
     """Убить процесс на порту"""
     try:
-        for proc in psutil.process_iter(['pid', 'name', 'connections']):
+        for proc in psutil.process_iter(['pid', 'name']):
             try:
-                connections = proc.info['connections']
-                if connections:
-                    for conn in connections:
-                        if conn.laddr.port == port:
-                            logging.info(f"Убиваю процесс {proc.info['name']} (PID: {proc.info['pid']}) на порту {port}")
-                            proc.terminate()
-                            proc.wait(timeout=5)
-                            return True
+                connections = proc.connections()
+                for conn in connections:
+                    if conn.laddr.port == port:
+                        logging.info(f"Убиваю процесс {proc.info['name']} (PID: {proc.info['pid']}) на порту {port}")
+                        proc.terminate()
+                        proc.wait(timeout=5)
+                        return True
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
     except Exception as e:
