@@ -1,0 +1,24 @@
+[Unit]
+Description=Dieta Bot Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/dieta
+Environment=PATH=/opt/dieta/venv/bin
+ExecStart=/opt/dieta/venv/bin/python /opt/dieta/start_all_services.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Graceful shutdown
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target 

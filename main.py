@@ -3,6 +3,7 @@ import asyncio
 import logging
 import sys
 import time
+import signal
 from datetime import datetime
 
 from core.init_bot import bot
@@ -27,10 +28,11 @@ class BotKeepAlive:
         self.last_activity = time.time()
         self.restart_count = 0
         self.max_restarts = 10
+        self._shutdown_event = False
         
     async def heartbeat(self):
         """Heartbeat для поддержания активности бота"""
-        while True:
+        while not self._shutdown_event:
             try:
                 # Отправляем ping каждые 30 секунд
                 await bot.get_me()
@@ -38,12 +40,13 @@ class BotKeepAlive:
                 logging.debug("Heartbeat: бот активен")
                 await asyncio.sleep(30)
             except Exception as e:
-                logging.warning(f"Heartbeat ошибка: {e}")
-                await asyncio.sleep(10)
+                if not self._shutdown_event:
+                    logging.warning(f"Heartbeat ошибка: {e}")
+                    await asyncio.sleep(10)
                 
     async def activity_monitor(self):
         """Мониторинг активности бота"""
-        while True:
+        while not self._shutdown_event:
             try:
                 current_time = time.time()
                 if current_time - self.last_activity > 300:  # 5 минут без активности
@@ -58,12 +61,17 @@ class BotKeepAlive:
                         
                 await asyncio.sleep(60)  # Проверяем каждую минуту
             except Exception as e:
-                logging.error(f"Ошибка в мониторе активности: {e}")
-                await asyncio.sleep(30)
+                if not self._shutdown_event:
+                    logging.error(f"Ошибка в мониторе активности: {e}")
+                    await asyncio.sleep(30)
+    
+    def shutdown(self):
+        """Сигнал для завершения работы"""
+        self._shutdown_event = True
 
 async def start_polling_with_retry(dp, keep_alive):
     """Запуск polling с автоматическими повторными попытками"""
-    while keep_alive.restart_count < keep_alive.max_restarts:
+    while keep_alive.restart_count < keep_alive.max_restarts and not keep_alive._shutdown_event:
         try:
             logging.info(f"Запуск polling (попытка {keep_alive.restart_count + 1})")
             
@@ -84,6 +92,8 @@ async def start_polling_with_retry(dp, keep_alive):
             logging.info("Polling отменен")
             break
         except Exception as e:
+            if keep_alive._shutdown_event:
+                break
             keep_alive.restart_count += 1
             error_msg = f"Ошибка в polling (попытка {keep_alive.restart_count}): {e}"
             logging.error(error_msg)
@@ -104,11 +114,37 @@ async def start_polling_with_retry(dp, keep_alive):
         logging.error("Превышено максимальное количество попыток перезапуска")
         raise RuntimeError("Критическая ошибка: бот не может поддерживать соединение")
 
+async def graceful_shutdown(keep_alive, tasks):
+    """Graceful shutdown бота"""
+    logging.info("Начинаю graceful shutdown бота...")
+    
+    # Сигнализируем о завершении
+    keep_alive.shutdown()
+    
+    # Отменяем все задачи
+    for task in tasks:
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+    
+    # Закрываем соединение с ботом
+    try:
+        await bot.session.close()
+        logging.info("🔌 Соединение с ботом закрыто")
+    except Exception as e:
+        logging.error(f"Ошибка при закрытии соединения: {e}")
+
 async def main():
     """Главная функция с полной инициализацией"""
     logging.info("=" * 50)
     logging.info("🤖 Запуск Диетолог-бота")
     logging.info("=" * 50)
+    
+    keep_alive = None
+    tasks = []
     
     try:
         # Инициализация базы данных
@@ -136,6 +172,7 @@ async def main():
         # Запуск фоновых задач
         heartbeat_task = asyncio.create_task(keep_alive.heartbeat())
         monitor_task = asyncio.create_task(keep_alive.activity_monitor())
+        tasks = [heartbeat_task, monitor_task]
         
         logging.info("🚀 Бот запущен и готов к работе!")
         logging.info("💡 Система keep-alive активирована")
@@ -143,24 +180,17 @@ async def main():
         
         # Основной polling
         polling_task = asyncio.create_task(start_polling_with_retry(dp, keep_alive))
+        tasks.append(polling_task)
         
         # Ждем завершения любой из задач
         done, pending = await asyncio.wait(
-            [polling_task, heartbeat_task, monitor_task],
+            tasks,
             return_when=asyncio.FIRST_COMPLETED
         )
         
-        # Отменяем оставшиеся задачи
-        for task in pending:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-                
         # Проверяем результат
         for task in done:
-            if task.exception():
+            if task.exception() and not isinstance(task.exception(), asyncio.CancelledError):
                 raise task.exception()
                 
     except KeyboardInterrupt:
@@ -169,17 +199,27 @@ async def main():
         logging.error(f"💥 Критическая ошибка: {e}")
         raise
     finally:
-        try:
-            await bot.session.close()
-            logging.info("🔌 Соединение закрыто")
-        except:
-            pass
+        if keep_alive and tasks:
+            await graceful_shutdown(keep_alive, tasks)
+
+def signal_handler(signum, frame):
+    """Обработчик сигналов для корректного завершения"""
+    logging.info(f"Получен сигнал {signum}, начинаю graceful shutdown...")
+    # Сигнал будет обработан в основном цикле через KeyboardInterrupt
 
 if __name__ == '__main__':
     try:
         # Установка политики событий для Windows
         if sys.platform == 'win32':
             asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        
+        # Регистрируем обработчики сигналов
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        # На Windows также обрабатываем SIGBREAK
+        if hasattr(signal, 'SIGBREAK'):
+            signal.signal(signal.SIGBREAK, signal_handler)
         
         asyncio.run(main())
     except KeyboardInterrupt:

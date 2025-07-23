@@ -6,6 +6,7 @@ import asyncio
 import os
 from dotenv import load_dotenv
 from database.init_database import engine, init_db
+from sqlalchemy import text
 
 load_dotenv()
 
@@ -24,16 +25,16 @@ async def test_db_connection():
         
         # Тестируем подключение
         async with engine.begin() as conn:
-            result = await conn.execute("SELECT 1")
+            result = await conn.execute(text("SELECT 1"))
             print("✅ Подключение к базе данных успешно")
             
             # Проверяем существование таблиц
-            result = await conn.execute("""
+            result = await conn.execute(text("""
                 SELECT table_name 
                 FROM information_schema.tables 
                 WHERE table_schema = 'public' 
                 AND table_name IN ('users', 'meals', 'presets')
-            """)
+            """))
             tables = [row[0] for row in result.fetchall()]
             print(f"✅ Найдены таблицы: {tables}")
             

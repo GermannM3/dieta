@@ -75,6 +75,7 @@ class ServiceManager:
         self.running = True
         self.restart_attempts = {'api': 0, 'bot': 0, 'frontend': 0, 'nginx': 0}
         self.max_restart_attempts = 3
+        self._shutdown_event = False
 
     def start_api_server(self):
         """Запуск API сервера"""
@@ -103,9 +104,9 @@ class ServiceManager:
             return False
 
     def start_bot(self):
-        """Запуск Telegram бота"""
+        """Запуск бота"""
         try:
-            logging.info("Запуск Telegram бота...")
+            logging.info("Запуск бота...")
             
             process = subprocess.Popen(
                 [sys.executable, "main.py"],
@@ -116,30 +117,42 @@ class ServiceManager:
                 universal_newlines=True
             )
             self.processes['bot'] = process
-            logging.info(f"Telegram бот запущен (PID: {process.pid})")
+            logging.info(f"Бот запущен (PID: {process.pid})")
             return True
         except Exception as e:
             logging.error(f"Ошибка запуска бота: {e}")
             return False
 
     def start_frontend(self):
-        """Запуск React фронтенда"""
+        """Запуск фронтенда"""
         try:
-            # Проверяем доступность порта 5173
-            if not check_port_available(5173):
-                logging.warning("Порт 5173 занят, освобождаю...")
-                kill_process_on_port(5173)
+            # Проверяем доступность порта 3000
+            if not check_port_available(3000):
+                logging.warning("Порт 3000 занят, освобождаю...")
+                kill_process_on_port(3000)
                 time.sleep(2)
             
-            logging.info("Запуск React фронтенда...")
+            logging.info("Запуск фронтенда...")
             
-            # Переходим в папку frontend
+            # Переходим в директорию фронтенда
             frontend_dir = "calorie-love-tracker"
             if not os.path.exists(frontend_dir):
-                logging.error(f"Папка {frontend_dir} не найдена")
+                logging.error(f"Директория {frontend_dir} не найдена")
                 return False
             
-            # Запускаем npm start
+            # Проверяем наличие node_modules
+            if not os.path.exists(os.path.join(frontend_dir, "node_modules")):
+                logging.info("Устанавливаем зависимости фронтенда...")
+                install_process = subprocess.run(
+                    ["npm", "install"],
+                    cwd=frontend_dir,
+                    capture_output=True,
+                    text=True
+                )
+                if install_process.returncode != 0:
+                    logging.error(f"Ошибка установки зависимостей: {install_process.stderr}")
+                    return False
+            
             process = subprocess.Popen(
                 ["npm", "start"],
                 cwd=frontend_dir,
@@ -150,14 +163,14 @@ class ServiceManager:
                 universal_newlines=True
             )
             self.processes['frontend'] = process
-            logging.info(f"React фронтенд запущен (PID: {process.pid})")
+            logging.info(f"Фронтенд запущен (PID: {process.pid})")
             return True
         except Exception as e:
             logging.error(f"Ошибка запуска фронтенда: {e}")
             return False
 
     def start_nginx(self):
-        """Запуск Nginx"""
+        """Запуск nginx"""
         try:
             # Проверяем доступность порта 80
             if not check_port_available(80):
@@ -165,60 +178,16 @@ class ServiceManager:
                 kill_process_on_port(80)
                 time.sleep(2)
             
-            logging.info("Запуск Nginx...")
+            logging.info("Запуск nginx...")
             
-            # Создаем простой nginx.conf если его нет
-            nginx_conf = """events {
-    worker_connections 1024;
-}
-
-http {
-    upstream api {
-        server 127.0.0.1:8000;
-    }
-
-    upstream frontend {
-        server 127.0.0.1:5173;
-    }
-
-    server {
-        listen 80;
-        server_name 5.129.198.80;
-
-        # Проксирование API запросов
-        location /api {
-            proxy_pass http://api;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection 'upgrade';
-            proxy_set_header Host $host;
-            proxy_cache_bypass $http_upgrade;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-
-        # Проксирование на frontend
-        location / {
-            proxy_pass http://frontend;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection 'upgrade';
-            proxy_set_header Host $host;
-            proxy_cache_bypass $http_upgrade;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-    }
-}"""
+            # Проверяем наличие конфигурации nginx
+            nginx_conf = "nginx.conf"
+            if not os.path.exists(nginx_conf):
+                logging.error(f"Файл конфигурации {nginx_conf} не найден")
+                return False
             
-            with open('nginx.conf', 'w') as f:
-                f.write(nginx_conf)
-            
-            # Запускаем nginx
             process = subprocess.Popen(
-                ["nginx", "-c", os.path.abspath("nginx.conf")],
+                ["nginx", "-c", os.path.abspath(nginx_conf)],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -229,9 +198,9 @@ http {
             logging.info(f"Nginx запущен (PID: {process.pid})")
             return True
         except Exception as e:
-            logging.error(f"Ошибка запуска Nginx: {e}")
+            logging.error(f"Ошибка запуска nginx: {e}")
             return False
-    
+
     def check_process(self, name):
         """Проверка состояния процесса"""
         if name not in self.processes:
@@ -241,15 +210,9 @@ http {
         if process.poll() is None:
             return True
         else:
-            # Процесс завершился
-            stdout, stderr = process.communicate()
-            if stdout:
-                logging.info(f"STDOUT {name}: {stdout}")
-            if stderr:
-                logging.error(f"STDERR {name}: {stderr}")
-            logging.warning(f"Процесс {name} завершился (код: {process.returncode})")
+            logging.warning(f"Процесс {name} завершился с кодом {process.returncode}")
             return False
-    
+
     def restart_process(self, name):
         """Перезапуск процесса"""
         if self.restart_attempts[name] >= self.max_restart_attempts:
@@ -285,12 +248,16 @@ http {
         if name in self.processes:
             process = self.processes[name]
             logging.info(f"Останавливаю {name} (PID: {process.pid})")
+            
+            # Сначала пытаемся graceful shutdown
             process.terminate()
             try:
-                process.wait(timeout=5)
+                process.wait(timeout=10)  # Увеличиваем таймаут
             except subprocess.TimeoutExpired:
+                logging.warning(f"Процесс {name} не завершился gracefully, принудительно завершаю...")
                 process.kill()
                 process.wait()
+            
             del self.processes[name]
     
     def stop_all(self):
@@ -298,6 +265,19 @@ http {
         logging.info("Останавливаю все процессы...")
         for name in list(self.processes.keys()):
             self.stop_process(name)
+    
+    def graceful_shutdown(self):
+        """Graceful shutdown всех процессов"""
+        logging.info("Начинаю graceful shutdown...")
+        self._shutdown_event = True
+        self.running = False
+        
+        # Даем время на graceful shutdown
+        time.sleep(2)
+        
+        # Останавливаем все процессы
+        self.stop_all()
+        logging.info("Graceful shutdown завершен")
     
     def run(self):
         """Основной цикл управления сервисами"""
@@ -320,7 +300,7 @@ http {
             time.sleep(2)
         
         # Основной цикл мониторинга
-        while self.running:
+        while self.running and not self._shutdown_event:
             try:
                 for service in services:
                     if not self.check_process(service):
@@ -332,18 +312,25 @@ http {
                 logging.error(f"Ошибка в основном цикле: {e}")
                 time.sleep(5)
         
-        self.stop_all()
+        if self._shutdown_event:
+            self.graceful_shutdown()
+        else:
+            self.stop_all()
 
 def signal_handler(signum, frame):
     """Обработчик сигналов для корректного завершения"""
-    logging.info("Получен сигнал остановки")
+    logging.info(f"Получен сигнал {signum}, начинаю graceful shutdown...")
     if hasattr(signal_handler, 'manager'):
-        signal_handler.manager.running = False
+        signal_handler.manager.graceful_shutdown()
 
 if __name__ == "__main__":
     # Регистрируем обработчики сигналов
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
+    
+    # На Windows также обрабатываем SIGBREAK
+    if hasattr(signal, 'SIGBREAK'):
+        signal.signal(signal.SIGBREAK, signal_handler)
     
     manager = ServiceManager()
     signal_handler.manager = manager
@@ -351,8 +338,10 @@ if __name__ == "__main__":
     try:
         manager.run()
     except KeyboardInterrupt:
-        logging.info("Получен сигнал остановки")
-        manager.running = False
-    finally:
+        logging.info("Получен KeyboardInterrupt, начинаю graceful shutdown...")
+        manager.graceful_shutdown()
+    except Exception as e:
+        logging.error(f"Критическая ошибка: {e}")
         manager.stop_all()
+    finally:
         logging.info("Все сервисы остановлены") 
