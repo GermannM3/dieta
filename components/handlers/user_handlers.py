@@ -30,17 +30,6 @@ CONNECTION_TIMEOUT = 10  # Таймаут подключения
 # API URL для обращения к серверу
 API_URL = os.getenv('API_BASE_URL', 'http://api:8000')
 
-def check_premium(tg_id: int) -> bool:
-    """Проверяет, есть ли у пользователя премиум подписка"""
-    try:
-        # Проверяем через API
-        r = requests.get(f'{API_URL}/api/premium?tg_id={tg_id}', timeout=5)
-        if r.status_code == 200:
-            return r.json().get('is_premium', False)
-        return False
-    except:
-        return False
-
 router = Router()
 
 # Системный промпт для диетолога
@@ -245,6 +234,7 @@ async def chat_active(message: Message, state: FSMContext):
             await save_fsm_state(message.from_user.id, 'Chat:active')
             await waiting_message.delete()
         elif message.content_type == ContentType.PHOTO:
+            from components.payment_system.payment_operations import check_premium
             access = check_premium(tg_id=message.from_user.id)
             if not access:
                 await message.answer('<b>Для обработки изображений необходимо приобрести премиум подписку /premium</b>')
@@ -592,7 +582,6 @@ class MoodFSM(StatesGroup):
 async def addmeal_command(message: Message, state: FSMContext):
     # Устанавливаем состояние для добавления еды
     await state.set_state(AddMealFSM.waiting)
-    await clear_fsm_state(message.from_user.id)
     
     message_text = (
         "🍽️ <b>Добавление еды</b>\n\n"
@@ -602,7 +591,6 @@ async def addmeal_command(message: Message, state: FSMContext):
     )
     
     await message.answer(message_text, reply_markup=kb.add_food_kb, parse_mode='HTML')
-    await state.set_state(AddMealFSM.waiting)
     await save_fsm_state(message.from_user.id, 'AddMealFSM:waiting')
 
 @router.message(AddMealFSM.waiting)
@@ -949,9 +937,7 @@ async def preset_food(message: Message, state: FSMContext):
 async def mood_command(message: Message, state: FSMContext):
     # Устанавливаем состояние для трекера настроения
     await state.set_state(MoodFSM.waiting)
-    await clear_fsm_state(message.from_user.id)
     await message.answer("Какое у вас настроение? (от 1 до 5)", reply_markup=kb.back_kb)
-    await state.set_state(MoodFSM.waiting)
     await save_fsm_state(message.from_user.id, 'MoodFSM:waiting')
 
 @router.message(MoodFSM.waiting)
@@ -977,7 +963,6 @@ async def mood_waiting(message: Message, state: FSMContext):
 async def water_command(message: Message, state: FSMContext):
     # Устанавливаем состояние для трекера воды
     await state.set_state(WaterFSM.add)
-    await clear_fsm_state(message.from_user.id)
     
     # Быстро получаем текущее количество воды из локальной БД
     async with async_session() as session:
@@ -985,7 +970,6 @@ async def water_command(message: Message, state: FSMContext):
         current_water = (user.water_ml or 0) if user else 0
     
     await message.answer(f"Выпито воды: {current_water} мл\n\nВведите количество мл, которое вы выпили:", reply_markup=kb.back_kb)
-    await state.set_state(WaterFSM.add)
     await save_fsm_state(message.from_user.id, 'WaterFSM:add')
 
 @router.message(WaterFSM.add)
@@ -1040,6 +1024,7 @@ async def premium_info(message: Message):
 @router.callback_query(F.data == 'dietolog')
 async def dietolog_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
+    from components.payment_system.payment_operations import check_premium
     access = check_premium(tg_id=callback.from_user.id)
     if not access:
         await callback.message.answer('<b>Индивидуальный план питания доступен только по премиум-подписке. Оформить: /premium</b>')
@@ -1561,6 +1546,9 @@ async def score_command(message: Message, state: FSMContext):
         if not user:
             await message.answer("Пользователь не найден в базе данных.")
             return
+        
+        # Импортируем правильную функцию check_premium
+        from components.payment_system.payment_operations import check_premium
         
         # Быстро показываем то, что у нас есть в локальной БД
         progress_text = f"<b>📊 Ваш прогресс:</b>\n\n"
