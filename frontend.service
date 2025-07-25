@@ -1,0 +1,14 @@
+[Unit]
+Description=Dieta Frontend
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/dieta/calorie-love-tracker
+ExecStart=/usr/bin/npm start
+Environment=PORT=5173
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target 
