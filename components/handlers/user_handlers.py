@@ -30,6 +30,17 @@ CONNECTION_TIMEOUT = 10  # Таймаут подключения
 # API URL для обращения к серверу
 API_URL = os.getenv('API_BASE_URL', 'http://api:8000')
 
+def check_premium(tg_id: int) -> bool:
+    """Проверяет, есть ли у пользователя премиум подписка"""
+    try:
+        # Проверяем через API
+        r = requests.get(f'{API_URL}/api/premium?tg_id={tg_id}', timeout=5)
+        if r.status_code == 200:
+            return r.json().get('is_premium', False)
+        return False
+    except:
+        return False
+
 router = Router()
 
 # Системный промпт для диетолога
@@ -579,8 +590,8 @@ class MoodFSM(StatesGroup):
 @router.message(Command('addmeal'))
 @router.message(lambda message: message.text == 'Добавить еду')
 async def addmeal_command(message: Message, state: FSMContext):
-    # Очищаем текущее состояние
-    await state.clear()
+    # Устанавливаем состояние для добавления еды
+    await state.set_state(AddMealFSM.waiting)
     await clear_fsm_state(message.from_user.id)
     
     message_text = (
@@ -936,8 +947,8 @@ async def preset_food(message: Message, state: FSMContext):
 @router.message(Command('mood'))
 @router.message(lambda message: message.text == 'Трекер настроения')
 async def mood_command(message: Message, state: FSMContext):
-    # Очищаем текущее состояние
-    await state.clear()
+    # Устанавливаем состояние для трекера настроения
+    await state.set_state(MoodFSM.waiting)
     await clear_fsm_state(message.from_user.id)
     await message.answer("Какое у вас настроение? (от 1 до 5)", reply_markup=kb.back_kb)
     await state.set_state(MoodFSM.waiting)
@@ -964,8 +975,8 @@ async def mood_waiting(message: Message, state: FSMContext):
 @router.message(Command('water'))
 @router.message(lambda message: message.text == 'Трекер воды')
 async def water_command(message: Message, state: FSMContext):
-    # Очищаем текущее состояние
-    await state.clear()
+    # Устанавливаем состояние для трекера воды
+    await state.set_state(WaterFSM.add)
     await clear_fsm_state(message.from_user.id)
     
     # Быстро получаем текущее количество воды из локальной БД
@@ -1201,7 +1212,7 @@ def fake_callback_query(message):
 @router.message(Command('profile'))
 @router.message(lambda message: message.text == 'Профиль')
 async def profile_command(message: Message, state: FSMContext):
-    # Очищаем текущее состояние
+    # Очищаем состояние только для профиля
     await state.clear()
     
     # Проверяем профиль пользователя
@@ -1240,7 +1251,7 @@ async def profile_command(message: Message, state: FSMContext):
 @router.message(Command('history'))
 @router.message(lambda message: message.text == 'История приёмов пищи')
 async def history_command(message: Message, state: FSMContext):
-    # Очищаем текущее состояние
+    # Очищаем состояние только для истории
     await state.clear()
     
     import requests
@@ -1265,6 +1276,7 @@ async def history_command(message: Message, state: FSMContext):
 @router.message(Command('presets'))
 @router.message(lambda message: message.text == 'Мои шаблоны')
 async def presets_command(message: Message, state: FSMContext):
+    # Очищаем состояние только для шаблонов
     await state.clear()
     await clear_fsm_state(message.from_user.id)
     
@@ -1377,7 +1389,7 @@ async def create_template_from_addmeal_callback(callback: CallbackQuery, state: 
 @router.message(Command('dietolog'))
 @router.message(lambda message: message.text == 'Личный диетолог')
 async def dietolog_command(message: Message, state: FSMContext):
-    # Очищаем текущее состояние
+    # Очищаем состояние только для диетолога
     await state.clear()
     
     # Проверяем подписку на диетолога
@@ -1416,7 +1428,7 @@ async def dietolog_command(message: Message, state: FSMContext):
 @router.message(Command('menu'))
 @router.message(lambda message: message.text == 'Сгенерировать меню')
 async def menu_command(message: Message, state: FSMContext):
-    # Очищаем текущее состояние
+    # Очищаем состояние только для меню
     await state.clear()
     
     # Проверяем подписку на генерацию меню
@@ -1521,6 +1533,7 @@ async def menu_command(message: Message, state: FSMContext):
 @router.message(lambda message: message.text == 'Распознать еду на фото')
 async def recognize_food_command(message: Message, state: FSMContext):
     """Заглушка для распознавания еды по фото"""
+    # Очищаем состояние только для распознавания
     await state.clear()
     await clear_fsm_state(message.from_user.id)
     
@@ -1538,6 +1551,7 @@ async def recognize_food_command(message: Message, state: FSMContext):
 @router.message(Command('score'))
 @router.message(lambda message: message.text == 'Баллы и прогресс')
 async def score_command(message: Message, state: FSMContext):
+    # Очищаем состояние только для баллов
     await state.clear()
     await clear_fsm_state(message.from_user.id)
     
@@ -1602,6 +1616,7 @@ async def score_command(message: Message, state: FSMContext):
 @router.message(lambda message: message.text == 'Статистика')
 async def statistics_command(message: Message, state: FSMContext):
     """Показывает детальную статистику по дням"""
+    # Очищаем состояние только для статистики
     await state.clear()
     await clear_fsm_state(message.from_user.id)
     
