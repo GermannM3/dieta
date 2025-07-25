@@ -9,23 +9,23 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Настройки YooMoney
-YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID', '381764678')
-YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY', 'TEST:132209')
-YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '381764678:TEST:132209')
+YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID', '1097156')
+YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY', 'live_4nHajHuzYGMrBPFLXQojoRW1_6ay2jy7SqSBUl16JOA')
+YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '1097156:live_4nHajHuzYGMrBPFLXQojoRW1_6ay2jy7SqSBUl16JOA')
 
 # Настройки подписки
 SUBSCRIPTION_PRICE = int(os.getenv('SUBSCRIPTION_PRICE', '200'))
 SUBSCRIPTION_DURATION_DAYS = int(os.getenv('SUBSCRIPTION_DURATION_DAYS', '7'))
 
 # Инициализация YooMoney
-Configuration.account_id = YOOKASSA_SHOP_ID
-Configuration.secret_key = YOOKASSA_SECRET_KEY
+Configuration.account_id = "1097156"
+Configuration.secret_key = os.getenv('YOOKASSA_SECRET_KEY')
 
 class PaymentManager:
     """Менеджер для работы с платежами YooMoney"""
     
     @staticmethod
-    async def create_payment(user_id: int, subscription_type: str) -> dict:
+    async def create_payment(user_id: int, subscription_type: str, email: str = "user@example.com") -> dict:
         """
         Создает платеж для подписки
         
@@ -63,6 +63,15 @@ class PaymentManager:
                     },
                     "capture": True,
                     "description": f"{title} - {description}",
+                    "receipt": {
+                        "customer": {"email": email},
+                        "items": [{
+                            "description": "Подписка «Твой Диетолог»",
+                            "quantity": 1,
+                            "amount": {"value": str(SUBSCRIPTION_PRICE), "currency": "RUB"},
+                            "vat_code": 1
+                        }]
+                    },
                     "metadata": {
                         "user_id": str(user_id),
                         "subscription_type": subscription_type
