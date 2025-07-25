@@ -147,28 +147,43 @@ sudo cat /etc/systemd/system/frontend.service
 
 # 🚨 БЫСТРОЕ ИСПРАВЛЕНИЕ REDIS ОШИБКИ
 
-## 1. Установить Redis (правильная версия для Ubuntu 24.04)
+## 1. Попробовать установить Redis через snap (рекомендуется)
 ```bash
-# Удалить конфликтующие пакеты
-sudo apt remove redis-tools valkey-redis-compat 2>/dev/null || true
-
-# Установить Redis сервер
-sudo apt update
-sudo apt install redis-server
+# Установить Redis через snap
+sudo snap install redis
 
 # Запустить Redis
-sudo systemctl enable --now redis-server
+sudo snap start redis
+
+# Проверить статус
+sudo snap services redis
 ```
 
-## 2. Проверить статус Redis
+## 2. Если snap не работает - попробовать Docker
 ```bash
-sudo systemctl status redis-server
+# Установить Docker Redis
+sudo docker run -d --name redis -p 6379:6379 redis:alpine
+
+# Проверить что Redis работает
+sudo docker ps | grep redis
 ```
 
-## 3. Проверить что Redis отвечает
+## 3. Если ничего не работает - использовать MemoryStorage
 ```bash
-redis-cli ping
-# Должен ответить: PONG
+# Остановить бота
+sudo systemctl stop bot
+
+# Отредактировать main.py чтобы использовать только MemoryStorage
+sudo nano /opt/dieta/main.py
+```
+
+Найти эти строки и заменить на:
+```python
+# Создание диспетчера с MemoryStorage для FSM
+logger.info("🔧 Инициализация FSM storage...")
+from aiogram.fsm.storage.memory import MemoryStorage
+storage = MemoryStorage()
+logger.info("✅ MemoryStorage инициализирован")
 ```
 
 ## 4. Убить лишний процесс бота
@@ -195,8 +210,8 @@ sudo journalctl -u bot -f
 ```
 
 ## ✅ Ожидаемый результат:
-- Redis работает (PONG)
-- Нет ошибок Redis в логах
+- Redis работает (если установлен) или MemoryStorage
+- Нет ошибок в логах
 - Бот отвечает на команды
 - Один процесс бота
 - Все функции работают 
