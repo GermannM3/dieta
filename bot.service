@@ -1,0 +1,16 @@
+[Unit]
+Description=Dieta Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/dieta
+ExecStart=/opt/dieta/venv/bin/python main.py
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target 
