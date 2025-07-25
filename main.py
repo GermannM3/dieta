@@ -1,5 +1,4 @@
 from aiogram import Dispatcher
-from aiogram.fsm.storage.redis import RedisStorage
 import asyncio
 import logging
 import sys
@@ -149,18 +148,12 @@ async def main():
         await init_db()
         logger.info("✅ База данных готова")
         
-        # Создание диспетчера с Redis storage для FSM
+        # Создание диспетчера с MemoryStorage для FSM
         logger.info("🔧 Инициализация FSM storage...")
-        try:
-            # Пытаемся использовать Redis
-            storage = RedisStorage.from_url("redis://localhost:6379/0")
-            logger.info("✅ Redis storage инициализирован")
-        except Exception as e:
-            logger.warning(f"⚠️ Redis недоступен, используем MemoryStorage: {e}")
-            from aiogram.fsm.storage.memory import MemoryStorage
-            storage = MemoryStorage()
-            logger.info("✅ MemoryStorage инициализирован")
-        
+        from aiogram.fsm.storage.memory import MemoryStorage
+        storage = MemoryStorage()
+        logger.info("✅ MemoryStorage инициализирован")
+
         dp = Dispatcher(storage=storage)
         dp.include_routers(admin_router, payment_router, fat_tracker_router, user_router)
         logger.info("✅ Роутеры подключены")

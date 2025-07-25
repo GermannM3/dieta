@@ -144,3 +144,34 @@ sudo cat /etc/nginx/sites-enabled/tvoi-kalkulyator
 sudo cat /etc/systemd/system/api.service
 sudo cat /etc/systemd/system/frontend.service
 ``` 
+
+# 🚨 БЫСТРОЕ ИСПРАВЛЕНИЕ REDIS ОШИБКИ
+
+## 1. Убить лишний процесс бота
+```bash
+sudo pkill -f "python main.py"
+ps aux | grep 'main.py' | grep -v grep
+# Должна быть ТОЛЬКО ОДНА строка!
+```
+
+## 2. Перезапустить бота
+```bash
+sudo systemctl restart bot
+sudo systemctl status bot
+```
+
+## 3. Проверить логи
+```bash
+sudo journalctl -u bot -f
+```
+
+## 4. Протестировать в Telegram
+```
+/start
+```
+
+## ✅ Ожидаемый результат:
+- Нет ошибок Redis
+- Бот отвечает на команды
+- Один процесс бота
+- Все функции работают 
