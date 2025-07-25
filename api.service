@@ -1,0 +1,14 @@
+[Unit]
+Description=Dieta API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/dieta
+ExecStart=/opt/dieta/venv/bin/python -m uvicorn improved_api_server:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target 

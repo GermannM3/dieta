@@ -36,16 +36,15 @@ def check_port_available(port, host='127.0.0.1'):
 def kill_process_on_port(port):
     """Убить процесс на порту"""
     try:
-        for proc in psutil.process_iter(['pid', 'name', 'connections']):
+        for proc in psutil.process_iter(['pid', 'name']):
             try:
-                connections = proc.info['connections']
-                if connections:
-                    for conn in connections:
-                        if conn.laddr.port == port:
-                            logging.info(f"Убиваю процесс {proc.info['name']} (PID: {proc.info['pid']}) на порту {port}")
-                            proc.terminate()
-                            proc.wait(timeout=5)
-                            return True
+                connections = proc.connections()
+                for conn in connections:
+                    if hasattr(conn, 'laddr') and conn.laddr.port == port:
+                        logging.info(f"Убиваю процесс {proc.info['name']} (PID: {proc.info['pid']}) на порту {port}")
+                        proc.terminate()
+                        proc.wait(timeout=5)
+                        return True
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
     except Exception as e:
@@ -126,10 +125,10 @@ class ServiceManager:
     def start_frontend(self):
         """Запуск фронтенда"""
         try:
-            # Проверяем доступность порта 3000
-            if not check_port_available(3000):
-                logging.warning("Порт 3000 занят, освобождаю...")
-                kill_process_on_port(3000)
+            # Проверяем доступность порта 5173
+            if not check_port_available(5173):
+                logging.warning("Порт 5173 занят, освобождаю...")
+                kill_process_on_port(5173)
                 time.sleep(2)
             
             logging.info("Запуск фронтенда...")
