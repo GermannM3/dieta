@@ -82,6 +82,17 @@ async def health_check():
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
 
+@app.get("/api/health")
+async def api_health_check():
+    """Health check endpoint для API"""
+    try:
+        # Проверяем подключение к базе данных
+        async with async_session() as session:
+            result = await session.execute(text("SELECT 1"))
+            return {"status": "healthy", "database": "connected", "api": "running"}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
+
 def get_moscow_time():
     """Получает текущее время в Москве"""
     moscow_tz = pytz.timezone('Europe/Moscow')
