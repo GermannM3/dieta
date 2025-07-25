@@ -147,14 +147,21 @@ sudo cat /etc/systemd/system/frontend.service
 
 # 🚨 БЫСТРОЕ ИСПРАВЛЕНИЕ REDIS ОШИБКИ
 
-## 1. Проверить статус Redis
+## 1. Установить Redis (правильная версия для Ubuntu 24.04)
 ```bash
-sudo systemctl status redis-server
+# Удалить конфликтующие пакеты
+sudo apt remove redis-tools valkey-redis-compat 2>/dev/null || true
+
+# Установить Redis сервер
+sudo apt update
+sudo apt install redis-server
+
+# Запустить Redis
+sudo systemctl enable --now redis-server
 ```
 
-## 2. Если Redis не запущен - запустить
+## 2. Проверить статус Redis
 ```bash
-sudo systemctl enable --now redis-server
 sudo systemctl status redis-server
 ```
 
