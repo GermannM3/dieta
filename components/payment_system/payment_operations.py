@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Настройки YooMoney
 YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID', '1097156')
 YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY', 'live_4nHajHuzYGMrBPFLXQojoRW1_6ay2jy7SqSBUl16JOA')
-YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '1097156:LIVE:73839')
+#YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '1097156:LIVE:73839')
 
 # Настройки подписки
 SUBSCRIPTION_PRICE = int(os.getenv('SUBSCRIPTION_PRICE', '200'))
@@ -40,7 +40,6 @@ class PaymentManager:
         print("DEBUG: PaymentManager.create_payment called", file=sys.stderr)
         print("DEBUG: YOOKASSA_SHOP_ID =", YOOKASSA_SHOP_ID, file=sys.stderr)
         print("DEBUG: YOOKASSA_SECRET_KEY =", YOOKASSA_SECRET_KEY[:20] + "..." if len(YOOKASSA_SECRET_KEY) > 20 else YOOKASSA_SECRET_KEY, file=sys.stderr)
-        print("DEBUG: YOOKASSA_PAYMENT_TOKEN =", YOOKASSA_PAYMENT_TOKEN, file=sys.stderr)
         print("DEBUG: Configuration.account_id =", Configuration.account_id, file=sys.stderr)
         print("DEBUG: Configuration.secret_key =", Configuration.secret_key[:20] + "..." if Configuration.secret_key and len(Configuration.secret_key) > 20 else Configuration.secret_key, file=sys.stderr)
         
