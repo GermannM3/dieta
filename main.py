@@ -79,7 +79,7 @@ async def start_polling_with_retry(dp, keep_alive):
                 polling_timeout=60,          # Увеличиваем таймаут
                 request_timeout=30,          # Таймаут запроса
                 skip_updates=False,          # Не пропускаем обновления
-                allowed_updates=["message", "callback_query", "inline_query"],
+                allowed_updates=["message", "callback_query", "inline_query", "pre_checkout_query"],
                 drop_pending_updates=False,  # Не удаляем pending обновления
                 handle_signals=False         # Обрабатываем сигналы сами
             )
