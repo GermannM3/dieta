@@ -1614,6 +1614,89 @@ async def statistics_command(message: Message, state: FSMContext):
         error_text += f"• Использовать /addmeal для добавления еды"
         await loading_msg.edit_text(error_text)
 
+# Обработчик "Мои подписки" - должен быть перед fallback
+@router.message(lambda message: message.text == '💳 Мои подписки')
+async def my_subscriptions_handler(message: Message):
+    """Показывает информацию о подписках пользователя"""
+    import sys, traceback
+    print("DEBUG: my_subscriptions_handler called", file=sys.stderr)
+    print(f"DEBUG: Message text: '{message.text}'", file=sys.stderr)
+    print(f"DEBUG: Message text == '💳 Мои подписки': {message.text == '💳 Мои подписки'}", file=sys.stderr)
+    user_id = message.from_user.id
+    
+    try:
+        # Проверяем подписки напрямую из базы данных
+        from database.init_database import async_session, Subscription
+        from sqlalchemy import select, and_
+        from datetime import datetime
+        
+        print(f"DEBUG: Checking subscriptions for user {user_id}", file=sys.stderr)
+        
+        async with async_session() as session:
+            # Получаем активные подписки
+            diet_subscription = await session.execute(
+                select(Subscription).where(
+                    and_(
+                        Subscription.user_id == user_id,
+                        Subscription.subscription_type == 'diet_consultant',
+                        Subscription.status == 'completed',
+                        Subscription.end_date > datetime.utcnow()
+                    )
+                ).order_by(Subscription.end_date.desc())
+            )
+            diet_subscription = diet_subscription.scalar_one_or_none()
+            
+            menu_subscription = await session.execute(
+                select(Subscription).where(
+                    and_(
+                        Subscription.user_id == user_id,
+                        Subscription.subscription_type == 'menu_generator',
+                        Subscription.status == 'completed',
+                        Subscription.end_date > datetime.utcnow()
+                    )
+                ).order_by(Subscription.end_date.desc())
+            )
+            menu_subscription = menu_subscription.scalar_one_or_none()
+        
+        print(f"DEBUG: diet_subscription found: {diet_subscription is not None}", file=sys.stderr)
+        print(f"DEBUG: menu_subscription found: {menu_subscription is not None}", file=sys.stderr)
+        
+        response = "📋 <b>Ваши подписки:</b>\n\n"
+        
+        # Информация о подписке на диетолога
+        if diet_subscription:
+            days_left = (diet_subscription.end_date - datetime.utcnow()).days
+            response += f"👨‍⚕️ <b>Личный диетолог:</b> ✅ Активна\n"
+            response += f"⏰ Осталось дней: {days_left}\n"
+            response += f"📅 Действует до: {diet_subscription.end_date.strftime('%d.%m.%Y')}\n\n"
+        else:
+            response += "👨‍⚕️ <b>Личный диетолог:</b> ❌ Неактивна\n\n"
+        
+        # Информация о подписке на меню
+        if menu_subscription:
+            days_left = (menu_subscription.end_date - datetime.utcnow()).days
+            response += f"🍽️ <b>Генерация меню:</b> ✅ Активна\n"
+            response += f"⏰ Осталось дней: {days_left}\n"
+            response += f"📅 Действует до: {menu_subscription.end_date.strftime('%d.%m.%Y')}\n\n"
+        else:
+            response += "🍽️ <b>Генерация меню:</b> ❌ Неактивна\n\n"
+        
+        # Добавляем информацию о том, как получить подписки
+        if not diet_subscription and not menu_subscription:
+            response += "💡 <b>Как получить подписки:</b>\n"
+            response += "• Нажмите 'Личный диетолог' для консультаций\n"
+            response += "• Нажмите 'Сгенерировать меню' для персонального меню\n"
+            response += "• При первом использовании вам предложат оплату\n"
+        
+        print(f"DEBUG: Sending response: {response[:100]}...", file=sys.stderr)
+        await message.answer(response, parse_mode="HTML")
+        
+    except Exception as e:
+        print("DEBUG: my_subscriptions_handler exception", file=sys.stderr)
+        traceback.print_exc()
+        await message.answer("❌ Ошибка получения информации о подписках")
+        print(f"Ошибка получения подписок: {e}")
+
 # Catch-all хендлер в самом конце
 @router.message()
 async def other(message: Message, state: FSMContext):
@@ -1709,104 +1792,3 @@ async def safe_api_request(method, url, **kwargs):
         status_code = 500
         def json(self): return {}
     return MockResponse()
-
-@router.message(lambda message: message.text == '💳 Мои подписки')
-async def my_subscriptions_handler(message: Message):
-    """Показывает информацию о подписках пользователя"""
-    import sys, traceback
-    print("DEBUG: my_subscriptions_handler called", file=sys.stderr)
-    print(f"DEBUG: Message text: '{message.text}'", file=sys.stderr)
-    print(f"DEBUG: Message text == '💳 Мои подписки': {message.text == '💳 Мои подписки'}", file=sys.stderr)
-    user_id = message.from_user.id
-    
-    try:
-        # Проверяем подписки напрямую из базы данных
-        from database.init_database import async_session, Subscription
-        from sqlalchemy import select, and_
-        from datetime import datetime
-        
-        print(f"DEBUG: Checking subscriptions for user {user_id}", file=sys.stderr)
-        
-        async with async_session() as session:
-            # Получаем активные подписки
-            diet_subscription = await session.execute(
-                select(Subscription).where(
-                    and_(
-                        Subscription.user_id == user_id,
-                        Subscription.subscription_type == 'diet_consultant',
-                        Subscription.status == 'completed',
-                        Subscription.end_date > datetime.utcnow()
-                    )
-                ).order_by(Subscription.end_date.desc())
-            )
-            diet_subscription = diet_subscription.scalar_one_or_none()
-            
-            menu_subscription = await session.execute(
-                select(Subscription).where(
-                    and_(
-                        Subscription.user_id == user_id,
-                        Subscription.subscription_type == 'menu_generator',
-                        Subscription.status == 'completed',
-                        Subscription.end_date > datetime.utcnow()
-                    )
-                ).order_by(Subscription.end_date.desc())
-            )
-            menu_subscription = menu_subscription.scalar_one_or_none()
-        
-        print(f"DEBUG: diet_subscription found: {diet_subscription is not None}", file=sys.stderr)
-        print(f"DEBUG: menu_subscription found: {menu_subscription is not None}", file=sys.stderr)
-        
-        response = "📋 <b>Ваши подписки:</b>\n\n"
-        
-        # Информация о подписке на диетолога
-        if diet_subscription:
-            days_left = (diet_subscription.end_date - datetime.utcnow()).days
-            response += f"👨‍⚕️ <b>Личный диетолог:</b> ✅ Активна\n"
-            response += f"⏰ Осталось дней: {days_left}\n"
-            response += f"📅 Действует до: {diet_subscription.end_date.strftime('%d.%m.%Y')}\n\n"
-        else:
-            response += "👨‍⚕️ <b>Личный диетолог:</b> ❌ Неактивна\n\n"
-        
-        # Информация о подписке на меню
-        if menu_subscription:
-            days_left = (menu_subscription.end_date - datetime.utcnow()).days
-            response += f"🍽️ <b>Генерация меню:</b> ✅ Активна\n"
-            response += f"⏰ Осталось дней: {days_left}\n"
-            response += f"📅 Действует до: {menu_subscription.end_date.strftime('%d.%m.%Y')}\n\n"
-        else:
-            response += "🍽️ <b>Генерация меню:</b> ❌ Неактивна\n\n"
-        
-        # Добавляем информацию о том, как получить подписки
-        if not diet_subscription and not menu_subscription:
-            response += "💡 <b>Как получить подписки:</b>\n"
-            response += "• Нажмите 'Личный диетолог' для консультаций\n"
-            response += "• Нажмите 'Сгенерировать меню' для персонального меню\n"
-            response += "• При первом использовании вам предложат оплату\n"
-        
-        print(f"DEBUG: Sending response: {response[:100]}...", file=sys.stderr)
-        await message.answer(response, parse_mode="HTML")
-        
-    except Exception as e:
-        print("DEBUG: my_subscriptions_handler exception", file=sys.stderr)
-        traceback.print_exc()
-        await message.answer("❌ Ошибка получения информации о подписках")
-        print(f"Ошибка получения подписок: {e}")
-
-# Добавляем в конец файла, перед @router.message()
-@router.message()
-async def debug_all_messages(message: Message):
-    """Debug обработчик для всех сообщений"""
-    import sys
-    print(f"DEBUG: All messages handler - text: '{message.text}'", file=sys.stderr)
-    print(f"DEBUG: Message type: {type(message.text)}", file=sys.stderr)
-    print(f"DEBUG: Message length: {len(message.text) if message.text else 0}", file=sys.stderr)
-    print(f"DEBUG: Message bytes: {message.text.encode('utf-8') if message.text else b''}", file=sys.stderr)
-    
-    # Если это "Мои подписки", обрабатываем здесь
-    if message.text == '💳 Мои подписки':
-        print("DEBUG: Found 'Мои подписки' in debug handler!", file=sys.stderr)
-        await my_subscriptions_handler(message)
-        return
-    
-    # Для остальных сообщений - стандартная обработка
-    await other(message, None)  # Передаем None вместо state
