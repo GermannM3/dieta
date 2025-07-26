@@ -228,6 +228,9 @@ async_session = async_sessionmaker(
     autocommit=False
 )
 
+# Добавляем async_session_maker для совместимости
+async_session_maker = async_session
+
 default_metadata = Base.metadata
 
 async def init_db():

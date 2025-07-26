@@ -1716,28 +1716,63 @@ async def my_subscriptions_handler(message: Message):
     user_id = message.from_user.id
     
     try:
-        # Проверяем подписки
-        from components.payment_system.payment_operations import PaymentManager
-        diet_subscription = await PaymentManager.get_subscription_info(user_id, 'diet_consultant')
-        menu_subscription = await PaymentManager.get_subscription_info(user_id, 'menu_generator')
+        # Проверяем подписки напрямую из базы данных
+        from database.init_database import async_session, Subscription
+        from sqlalchemy import select, and_
+        from datetime import datetime
+        
+        async with async_session() as session:
+            # Получаем активные подписки
+            diet_subscription = await session.execute(
+                select(Subscription).where(
+                    and_(
+                        Subscription.user_id == user_id,
+                        Subscription.subscription_type == 'diet_consultant',
+                        Subscription.status == 'completed',
+                        Subscription.end_date > datetime.utcnow()
+                    )
+                ).order_by(Subscription.end_date.desc())
+            )
+            diet_subscription = diet_subscription.scalar_one_or_none()
+            
+            menu_subscription = await session.execute(
+                select(Subscription).where(
+                    and_(
+                        Subscription.user_id == user_id,
+                        Subscription.subscription_type == 'menu_generator',
+                        Subscription.status == 'completed',
+                        Subscription.end_date > datetime.utcnow()
+                    )
+                ).order_by(Subscription.end_date.desc())
+            )
+            menu_subscription = menu_subscription.scalar_one_or_none()
         
         response = "📋 <b>Ваши подписки:</b>\n\n"
         
         # Информация о подписке на диетолога
-        if diet_subscription and diet_subscription['is_active']:
+        if diet_subscription:
+            days_left = (diet_subscription.end_date - datetime.utcnow()).days
             response += f"👨‍⚕️ <b>Личный диетолог:</b> ✅ Активна\n"
-            response += f"⏰ Осталось дней: {diet_subscription['days_left']}\n"
-            response += f"📅 Действует до: {diet_subscription['end_date'].strftime('%d.%m.%Y')}\n\n"
+            response += f"⏰ Осталось дней: {days_left}\n"
+            response += f"📅 Действует до: {diet_subscription.end_date.strftime('%d.%m.%Y')}\n\n"
         else:
             response += "👨‍⚕️ <b>Личный диетолог:</b> ❌ Неактивна\n\n"
         
         # Информация о подписке на меню
-        if menu_subscription and menu_subscription['is_active']:
+        if menu_subscription:
+            days_left = (menu_subscription.end_date - datetime.utcnow()).days
             response += f"🍽️ <b>Генерация меню:</b> ✅ Активна\n"
-            response += f"⏰ Осталось дней: {menu_subscription['days_left']}\n"
-            response += f"📅 Действует до: {menu_subscription['end_date'].strftime('%d.%m.%Y')}\n\n"
+            response += f"⏰ Осталось дней: {days_left}\n"
+            response += f"📅 Действует до: {menu_subscription.end_date.strftime('%d.%m.%Y')}\n\n"
         else:
             response += "🍽️ <b>Генерация меню:</b> ❌ Неактивна\n\n"
+        
+        # Добавляем информацию о том, как получить подписки
+        if not diet_subscription and not menu_subscription:
+            response += "💡 <b>Как получить подписки:</b>\n"
+            response += "• Нажмите 'Личный диетолог' для консультаций\n"
+            response += "• Нажмите 'Сгенерировать меню' для персонального меню\n"
+            response += "• При первом использовании вам предложат оплату\n"
         
         await message.answer(response, parse_mode="HTML")
         

@@ -1,142 +1,171 @@
 #!/usr/bin/env python3
 """
-Финальный скрипт для исправления всех проблем
+Финальный скрипт для исправления всех проблем с ботом
 """
 
-import asyncio
-import sys
 import os
+import sys
 import subprocess
+import asyncio
+import requests
+from dotenv import load_dotenv
 
-# Добавляем путь к проекту
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Загружаем переменные окружения
+load_dotenv()
 
-from database.init_database import async_session_maker
-from database.crud import get_user_by_tg_id, get_user_by_email
-from sqlalchemy import text
+def run_command(command):
+    """Выполняет команду и возвращает результат"""
+    try:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        return result.returncode == 0, result.stdout, result.stderr
+    except Exception as e:
+        return False, "", str(e)
 
-async def fix_all_issues():
-    """Исправляет все проблемы"""
-    print("🔧 ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ВСЕХ ПРОБЛЕМ!")
+def check_api_server():
+    """Проверяет API сервер"""
+    print("🔍 Проверка API сервера...")
+    
+    try:
+        # Проверяем API на сервере
+        response = requests.get('http://5.129.198.80:8000/api/health', timeout=10)
+        if response.status_code == 200:
+            print("✅ API сервер работает")
+            return True
+        else:
+            print(f"❌ API сервер отвечает с ошибкой: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"❌ API сервер недоступен: {e}")
+        return False
+
+def check_database_connection():
+    """Проверяет подключение к базе данных"""
+    print("🔍 Проверка подключения к базе данных...")
+    
+    try:
+        # Тестируем API endpoint который использует БД
+        response = requests.get('http://5.129.198.80:8000/api/profile?tg_id=389694638', timeout=10)
+        if response.status_code == 200:
+            print("✅ База данных доступна")
+            return True
+        elif response.status_code == 404:
+            print("✅ База данных доступна (профиль не найден - это нормально)")
+            return True
+        else:
+            print(f"❌ Проблема с базой данных, статус: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"❌ Ошибка подключения к базе данных: {e}")
+        return False
+
+def test_bot_functions():
+    """Тестирует основные функции бота"""
+    print("🧪 Тестирование функций бота...")
+    
+    test_results = []
+    
+    # Тест 1: Проверка профиля
+    try:
+        response = requests.get('http://5.129.198.80:8000/api/profile?tg_id=389694638', timeout=10)
+        if response.status_code == 200:
+            test_results.append("✅ Профиль работает")
+        else:
+            test_results.append("❌ Профиль не работает")
+    except Exception as e:
+        test_results.append(f"❌ Ошибка профиля: {e}")
+    
+    # Тест 2: Проверка приемов пищи
+    try:
+        response = requests.get('http://5.129.198.80:8000/api/meals?user_id=389694638', timeout=10)
+        if response.status_code == 200:
+            test_results.append("✅ Приемы пищи работают")
+        else:
+            test_results.append("❌ Приемы пищи не работают")
+    except Exception as e:
+        test_results.append(f"❌ Ошибка приемов пищи: {e}")
+    
+    # Тест 3: Проверка статистики
+    try:
+        response = requests.get('http://5.129.198.80:8000/api/stats?user_id=389694638', timeout=10)
+        if response.status_code == 200:
+            test_results.append("✅ Статистика работает")
+        else:
+            test_results.append("❌ Статистика не работает")
+    except Exception as e:
+        test_results.append(f"❌ Ошибка статистики: {e}")
+    
+    # Выводим результаты
+    for result in test_results:
+        print(result)
+    
+    return all("✅" in result for result in test_results)
+
+def create_fix_instructions():
+    """Создает инструкции по исправлению"""
+    print("\n📋 ИНСТРУКЦИИ ПО ИСПРАВЛЕНИЮ:")
     print("=" * 50)
     
-    # 1. Обновляем зависимости
-    print("\n1️⃣ Обновление зависимостей...")
-    try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "mistralai"], check=True)
-        print("✅ Mistral AI обновлен")
-    except Exception as e:
-        print(f"❌ Ошибка обновления: {e}")
+    print("\n1️⃣ Подключение к серверу:")
+    print("   ssh root@5.129.198.80")
+    print("   cd /opt/dieta")
+    print("   source venv/bin/activate")
     
-    # 2. Настраиваем базу данных
-    print("\n2️⃣ Настройка базы данных...")
-    async with async_session_maker() as session:
-        try:
-            # Создаем таблицу премиум функций
-            await session.execute(text("""
-                CREATE TABLE IF NOT EXISTS premium_functions (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(100) NOT NULL,
-                    description TEXT,
-                    price INTEGER NOT NULL,
-                    duration_days INTEGER NOT NULL,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """))
-            
-            # Добавляем премиум функции
-            functions = [
-                {
-                    "name": "personal_dietitian",
-                    "description": "Личный диетолог - индивидуальные консультации и планы питания",
-                    "price": 200,
-                    "duration_days": 7
-                },
-                {
-                    "name": "menu_generation", 
-                    "description": "Генерация персонального меню на неделю",
-                    "price": 200,
-                    "duration_days": 7
-                },
-                {
-                    "name": "photo_recognition",
-                    "description": "Распознавание еды по фото (в разработке)",
-                    "price": 0,
-                    "duration_days": 0
-                }
-            ]
-            
-            for func in functions:
-                result = await session.execute(
-                    text("SELECT id FROM premium_functions WHERE name = :name"),
-                    {"name": func["name"]}
-                )
-                
-                if not result.fetchone():
-                    await session.execute(text("""
-                        INSERT INTO premium_functions (name, description, price, duration_days)
-                        VALUES (:name, :description, :price, :duration_days)
-                    """), func)
-                    print(f"✅ Добавлена функция: {func['name']} - {func['price']}₽")
-            
-            await session.commit()
-            print("✅ База данных настроена")
-            
-        except Exception as e:
-            print(f"❌ Ошибка БД: {e}")
-            await session.rollback()
+    print("\n2️⃣ Обновление кода:")
+    print("   git pull origin main")
     
-    # 3. Активируем премиум для админа
-    print("\n3️⃣ Активация премиума для админа...")
-    async with async_session_maker() as session:
-        try:
-            admin_tg_id = 389694638
-            admin_email = "germannm@vk.com"
-            
-            # Telegram пользователь
-            tg_user = await get_user_by_tg_id(session, admin_tg_id)
-            if tg_user:
-                tg_user.is_premium = True
-                print("✅ Премиум для Telegram активирован")
-            
-            # Веб пользователь
-            web_user = await get_user_by_email(session, admin_email)
-            if web_user:
-                web_user.is_premium = True
-                print("✅ Премиум для веб активирован")
-            
-            await session.commit()
-            print("✅ Премиум для админа активирован")
-            
-        except Exception as e:
-            print(f"❌ Ошибка активации премиума: {e}")
-            await session.rollback()
+    print("\n3️⃣ Проверка API_URL в .env:")
+    print("   nano .env")
+    print("   # Убедитесь что API_BASE_URL=http://localhost:8000")
     
-    # 4. Проверяем React фронтенд
-    print("\n4️⃣ Проверка React фронтенда...")
-    package_json_path = "calorie-love-tracker/package.json"
-    if os.path.exists(package_json_path):
-        print("✅ React проект найден")
-        
-        # Проверяем скрипт start
-        with open(package_json_path, 'r') as f:
-            content = f.read()
-            if '"start":' in content:
-                print("✅ Скрипт start уже добавлен")
-            else:
-                print("⚠️  Нужно добавить скрипт start в package.json")
+    print("\n4️⃣ Перезапуск бота:")
+    print("   sudo systemctl stop bot")
+    print("   sudo pkill -f 'python.*main'")
+    print("   sudo systemctl start bot")
+    
+    print("\n5️⃣ Проверка логов:")
+    print("   sudo journalctl -u bot -f")
+    
+    print("\n6️⃣ Тестирование в Telegram:")
+    print("   - Отправьте /start")
+    print("   - Отправьте /profile")
+    print("   - Отправьте 'Добавить еду'")
+    print("   - Отправьте 'История приёмов пищи'")
+    print("   - Отправьте '💳 Мои подписки'")
+    
+    print("\n" + "=" * 50)
+
+def main():
+    """Основная функция"""
+    print("🚀 Финальное исправление проблем с ботом")
+    print("=" * 50)
+    
+    # Проверяем API сервер
+    api_ok = check_api_server()
+    
+    # Проверяем базу данных
+    db_ok = check_database_connection()
+    
+    # Тестируем функции
+    functions_ok = test_bot_functions()
+    
+    print("\n📊 РЕЗУЛЬТАТЫ ПРОВЕРКИ:")
+    print("=" * 50)
+    print(f"API сервер: {'✅' if api_ok else '❌'}")
+    print(f"База данных: {'✅' if db_ok else '❌'}")
+    print(f"Функции бота: {'✅' if functions_ok else '❌'}")
+    
+    if all([api_ok, db_ok, functions_ok]):
+        print("\n🎉 Все проверки пройдены! Бот должен работать корректно.")
+        print("\n📋 Что исправлено:")
+        print("✅ API_URL настроен на localhost:8000")
+        print("✅ Добавлен async_session_maker для совместимости")
+        print("✅ Исправлен обработчик 'Мои подписки'")
+        print("✅ Убран трекер настроения")
+        print("✅ Убрана кнопка 'Купить подписку'")
+        print("✅ Обновлен токен YooKassa")
     else:
-        print("❌ React проект не найден")
-    
-    print("\n✅ ВСЕ ПРОБЛЕМЫ ИСПРАВЛЕНЫ!")
-    print("\n📋 Что сделано:")
-    print("• Обновлен Mistral AI до последней версии")
-    print("• Настроены премиум функции (200₽ за неделю)")
-    print("• Активирован премиум для админа")
-    print("• Добавлена температура 0.1 для всех AI запросов")
-    print("• Настроена админ панель управления пользователями")
-    print("\n🚀 Теперь можно запускать: python start_all_services.py")
+        print("\n⚠️ Обнаружены проблемы. Следуйте инструкциям ниже:")
+        create_fix_instructions()
 
 if __name__ == "__main__":
-    asyncio.run(fix_all_issues()) 
+    main() 
