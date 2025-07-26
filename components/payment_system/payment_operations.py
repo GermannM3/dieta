@@ -9,16 +9,16 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Настройки YooMoney
-YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID', '390540012')
+YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID', '1097156')
 YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY', 'live_4nHajHuzYGMrBPFLXQojoRW1_6ay2jy7SqSBUl16JOA')
-YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '390540012:LIVE:73839')
+YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '1097156:LIVE:73839')
 
 # Настройки подписки
 SUBSCRIPTION_PRICE = int(os.getenv('SUBSCRIPTION_PRICE', '200'))
 SUBSCRIPTION_DURATION_DAYS = int(os.getenv('SUBSCRIPTION_DURATION_DAYS', '7'))
 
 # Инициализация YooMoney
-Configuration.account_id = "390540012"
+Configuration.account_id = "1097156"
 Configuration.secret_key = os.getenv('YOOKASSA_SECRET_KEY')
 
 class PaymentManager:
@@ -44,10 +44,10 @@ class PaymentManager:
         print("DEBUG: Configuration.account_id =", Configuration.account_id, file=sys.stderr)
         print("DEBUG: Configuration.secret_key =", Configuration.secret_key[:20] + "..." if Configuration.secret_key and len(Configuration.secret_key) > 20 else Configuration.secret_key, file=sys.stderr)
         
-        # ВРЕМЕННОЕ РЕШЕНИЕ: Создаем тестовую подписку без YooKassa
-        print("DEBUG: Using temporary test mode - creating subscription without YooKassa", file=sys.stderr)
-        
         try:
+            # Создаем уникальный ID платежа
+            payment_idempotence_key = str(uuid.uuid4())
+            
             # Определяем описание в зависимости от типа подписки
             if subscription_type == 'diet_consultant':
                 title = "Личный диетолог"
@@ -58,38 +58,70 @@ class PaymentManager:
             else:
                 raise ValueError(f"Неизвестный тип подписки: {subscription_type}")
             
-            print(f"DEBUG: Creating test subscription for {subscription_type}, amount: {SUBSCRIPTION_PRICE}", file=sys.stderr)
+            print(f"DEBUG: Creating payment for {subscription_type}, amount: {SUBSCRIPTION_PRICE}", file=sys.stderr)
             
-            # Создаем тестовый платеж ID
-            test_payment_id = f"test_payment_{user_id}_{subscription_type}_{int(datetime.utcnow().timestamp())}"
+            # Создаем платеж в YooMoney
+            payment = Payment.create(
+                {
+                    "amount": {
+                        "value": str(SUBSCRIPTION_PRICE),
+                        "currency": "RUB"
+                    },
+                    "confirmation": {
+                        "type": "redirect",
+                        "return_url": "https://t.me/tvoy_diet_bot"
+                    },
+                    "capture": True,
+                    "description": f"{title} - {description}",
+                    "receipt": {
+                        "customer": {"email": email},
+                        "items": [{
+                            "description": "Подписка «Твой Диетолог»",
+                            "quantity": 1,
+                            "amount": {"value": str(SUBSCRIPTION_PRICE), "currency": "RUB"},
+                            "vat_code": 1
+                        }]
+                    },
+                    "metadata": {
+                        "user_id": str(user_id),
+                        "subscription_type": subscription_type
+                    }
+                },
+                payment_idempotence_key
+            )
             
-            # Сохраняем информацию о подписке в БД как "completed"
+            print(f"DEBUG: Payment created successfully, ID: {payment.id}", file=sys.stderr)
+            
+            # Сохраняем информацию о подписке в БД
             async with async_session() as session:
                 subscription = Subscription(
                     user_id=user_id,
                     subscription_type=subscription_type,
-                    payment_id=test_payment_id,
+                    payment_id=payment.id,
                     amount=SUBSCRIPTION_PRICE,
                     currency='RUB',
-                    status='completed',  # Сразу активируем
+                    status='pending',
                     start_date=datetime.utcnow(),
                     end_date=datetime.utcnow() + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
                 )
                 session.add(subscription)
                 await session.commit()
             
-            print(f"DEBUG: Test subscription created and activated for user {user_id}", file=sys.stderr)
+            print(f"DEBUG: Subscription saved to DB", file=sys.stderr)
             
             return {
-                'payment_id': test_payment_id,
-                'confirmation_url': 'https://t.me/tvoy_diet_bot',  # Тестовая ссылка
+                'payment_id': payment.id,
+                'confirmation_url': payment.confirmation.confirmation_url,
                 'amount': SUBSCRIPTION_PRICE,
                 'currency': 'RUB',
                 'title': title,
-                'description': description,
-                'test_mode': True
+                'description': description
             }
             
+        except YooKassaError as e:
+            print(f"DEBUG: YooKassaError occurred: {e}", file=sys.stderr)
+            print(f"Ошибка YooMoney: {e}")
+            raise
         except Exception as e:
             print(f"DEBUG: General exception in create_payment: {e}", file=sys.stderr)
             print(f"Ошибка создания платежа: {e}")
