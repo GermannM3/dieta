@@ -15,7 +15,7 @@ class PaymentStates(StatesGroup):
     waiting_for_payment = State()
 
 # Настройки платежей
-YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '390540012:LIVE:73839')
+YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '1097156:LIVE:73839')
 SUBSCRIPTION_PRICE = int(os.getenv('SUBSCRIPTION_PRICE', '200'))
 
 @router.message(Command("diet_consultant"))
@@ -51,27 +51,18 @@ async def diet_consultant_handler(message: Message, state: FSMContext):
         try:
             payment_info = await PaymentManager.create_payment(user_id, 'diet_consultant')
             
-            if payment_info.get('test_mode'):
-                # Тестовый режим - сразу активируем подписку
-                await message.answer(
-                    "✅ <b>Тестовая подписка активирована!</b>\n\n"
-                    "Ваша подписка на личного диетолога активна на 7 дней.\n\n"
-                    "Теперь вы можете задавать любые вопросы о питании!",
-                    parse_mode="HTML"
-                )
-                await state.clear()
-            else:
-                # Обычный режим с YooKassa
-                await message.bot.send_invoice(
-                    chat_id=message.chat.id,
-                    title="Личный диетолог",
-                    description="Персональные консультации диетолога на 7 дней",
-                    payload=payment_info['payment_id'],
-                    provider_token=YOOKASSA_PAYMENT_TOKEN,
-                    currency="RUB",
-                    prices=[LabeledPrice(label="Подписка на 7 дней", amount=SUBSCRIPTION_PRICE * 100)]
-                )
-                await state.set_state(PaymentStates.waiting_for_payment)
+            # Отправляем счет
+            await message.bot.send_invoice(
+                chat_id=message.chat.id,
+                title="Личный диетолог",
+                description="Персональные консультации диетолога на 7 дней",
+                payload=payment_info['payment_id'],
+                provider_token=YOOKASSA_PAYMENT_TOKEN,
+                currency="RUB",
+                prices=[LabeledPrice(label="Подписка на 7 дней", amount=SUBSCRIPTION_PRICE * 100)]
+            )
+            
+            await state.set_state(PaymentStates.waiting_for_payment)
             
         except Exception as e:
             await message.answer(
@@ -112,27 +103,18 @@ async def menu_generator_handler(message: Message, state: FSMContext):
         try:
             payment_info = await PaymentManager.create_payment(user_id, 'menu_generator')
             
-            if payment_info.get('test_mode'):
-                # Тестовый режим - сразу активируем подписку
-                await message.answer(
-                    "✅ <b>Тестовая подписка активирована!</b>\n\n"
-                    "Ваша подписка на генерацию меню активна на 7 дней.\n\n"
-                    "Теперь вы можете заказывать персональные меню!",
-                    parse_mode="HTML"
-                )
-                await state.clear()
-            else:
-                # Обычный режим с YooKassa
-                await message.bot.send_invoice(
-                    chat_id=message.chat.id,
-                    title="Генерация меню",
-                    description="Персональное меню на 7 дней",
-                    payload=payment_info['payment_id'],
-                    provider_token=YOOKASSA_PAYMENT_TOKEN,
-                    currency="RUB",
-                    prices=[LabeledPrice(label="Подписка на 7 дней", amount=SUBSCRIPTION_PRICE * 100)]
-                )
-                await state.set_state(PaymentStates.waiting_for_payment)
+            # Отправляем счет
+            await message.bot.send_invoice(
+                chat_id=message.chat.id,
+                title="Генерация меню",
+                description="Персональное меню на 7 дней",
+                payload=payment_info['payment_id'],
+                provider_token=YOOKASSA_PAYMENT_TOKEN,
+                currency="RUB",
+                prices=[LabeledPrice(label="Подписка на 7 дней", amount=SUBSCRIPTION_PRICE * 100)]
+            )
+            
+            await state.set_state(PaymentStates.waiting_for_payment)
             
         except Exception as e:
             await message.answer(
