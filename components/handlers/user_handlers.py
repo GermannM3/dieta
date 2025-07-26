@@ -369,63 +369,99 @@ async def profile_callback(callback: CallbackQuery, state: FSMContext):
 
 @router.message(ProfileFSM.name)
 async def profile_name(message: Message, state: FSMContext):
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await clear_fsm_state(message.from_user.id)
+        await message.answer("Создание профиля отменено", reply_markup=kb.main_menu_kb)
+        return
+    
     await state.update_data(name=message.text.strip())
-    await message.answer('<b>Введите ваш возраст (число):</b>')
+    await message.answer('<b>Введите ваш возраст (число):</b>', reply_markup=kb.back_kb)
     await state.set_state(ProfileFSM.age)
 
 @router.message(ProfileFSM.age)
 async def profile_age(message: Message, state: FSMContext):
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await clear_fsm_state(message.from_user.id)
+        await message.answer("Создание профиля отменено", reply_markup=kb.main_menu_kb)
+        return
+    
     try:
         age = int(message.text.strip())
         if not (5 < age < 120): raise ValueError
     except:
-        await message.answer('<b>Возраст должен быть числом от 6 до 119</b>')
+        await message.answer('<b>Возраст должен быть числом от 6 до 119</b>', reply_markup=kb.back_kb)
         return
     await state.update_data(age=age)
-    await message.answer('<b>Ваш пол? (м/ж):</b>')
+    await message.answer('<b>Ваш пол? (м/ж):</b>', reply_markup=kb.back_kb)
     await state.set_state(ProfileFSM.gender)
 
 @router.message(ProfileFSM.gender)
 async def profile_gender(message: Message, state: FSMContext):
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await clear_fsm_state(message.from_user.id)
+        await message.answer("Создание профиля отменено", reply_markup=kb.main_menu_kb)
+        return
+    
     gender = message.text.strip().lower()
     if gender not in ['м', 'ж']:
-        await message.answer('<b>Введите "м" или "ж"</b>')
+        await message.answer('<b>Введите "м" или "ж"</b>', reply_markup=kb.back_kb)
         return
     await state.update_data(gender=gender)
-    await message.answer('<b>Ваш вес (кг):</b>')
+    await message.answer('<b>Ваш вес (кг):</b>', reply_markup=kb.back_kb)
     await state.set_state(ProfileFSM.weight)
 
 @router.message(ProfileFSM.weight)
 async def profile_weight(message: Message, state: FSMContext):
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await clear_fsm_state(message.from_user.id)
+        await message.answer("Создание профиля отменено", reply_markup=kb.main_menu_kb)
+        return
+    
     try:
         weight = float(message.text.strip())
         if not (20 < weight < 400): raise ValueError
     except:
-        await message.answer('<b>Вес должен быть числом (20-400)</b>')
+        await message.answer('<b>Вес должен быть числом (20-400)</b>', reply_markup=kb.back_kb)
         return
     await state.update_data(weight=weight)
-    await message.answer('<b>Ваш рост (см):</b>')
+    await message.answer('<b>Ваш рост (см):</b>', reply_markup=kb.back_kb)
     await state.set_state(ProfileFSM.height)
 
 @router.message(ProfileFSM.height)
 async def profile_height(message: Message, state: FSMContext):
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await clear_fsm_state(message.from_user.id)
+        await message.answer("Создание профиля отменено", reply_markup=kb.main_menu_kb)
+        return
+    
     try:
         height = float(message.text.strip())
         if not (80 < height < 250): raise ValueError
     except:
-        await message.answer('<b>Рост должен быть числом (80-250)</b>')
+        await message.answer('<b>Рост должен быть числом (80-250)</b>', reply_markup=kb.back_kb)
         return
     await state.update_data(height=height)
-    await message.answer('<b>Уровень активности (1-5):\n1 — минимум, 5 — максимум</b>')
+    await message.answer('<b>Уровень активности (1-5):\n1 — минимум, 5 — максимум</b>', reply_markup=kb.back_kb)
     await state.set_state(ProfileFSM.activity)
 
 @router.message(ProfileFSM.activity)
 async def profile_activity(message: Message, state: FSMContext):
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await clear_fsm_state(message.from_user.id)
+        await message.answer("Создание профиля отменено", reply_markup=kb.main_menu_kb)
+        return
+    
     try:
         activity = int(message.text.strip())
         if not (1 <= activity <= 5): raise ValueError
     except:
-        await message.answer('<b>Введите число от 1 до 5</b>')
+        await message.answer('<b>Введите число от 1 до 5</b>', reply_markup=kb.back_kb)
         return
     await state.update_data(activity=activity)
     data = await state.get_data()
@@ -878,14 +914,26 @@ async def presets_callback(callback: CallbackQuery, state: FSMContext):
 
 @router.message(PresetFSM.name)
 async def preset_name(message: Message, state: FSMContext):
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await clear_fsm_state(message.from_user.id)
+        await message.answer("Создание шаблона отменено", reply_markup=kb.main_menu_kb)
+        return
+    
     await state.update_data(preset_name=message.text.strip(), food_items=[])
     await save_fsm_state(message.from_user.id, 'PresetFSM:name', {'preset_name': message.text.strip(), 'food_items': []})
-    await message.answer('<b>Введите блюдо и вес (пример: Яблоко, 100). Когда закончите, напишите "готово".</b>')
+    await message.answer('<b>Введите блюдо и вес (пример: Яблоко, 100). Когда закончите, напишите "готово".</b>', reply_markup=kb.back_kb)
     await state.set_state(PresetFSM.food)
     await save_fsm_state(message.from_user.id, 'PresetFSM:food')
 
 @router.message(PresetFSM.food)
 async def preset_food(message: Message, state: FSMContext):
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await clear_fsm_state(message.from_user.id)
+        await message.answer("Создание шаблона отменено", reply_markup=kb.main_menu_kb)
+        return
+    
     if message.text.strip().lower() == 'готово':
         data = await state.get_data()
         import requests
@@ -912,7 +960,7 @@ async def preset_food(message: Message, state: FSMContext):
         food_name, weight = [x.strip() for x in message.text.split(',')]
         weight = float(weight)
     except Exception:
-        await message.answer('<b>Формат неверный. Пример: Яблоко, 100</b>')
+        await message.answer('<b>Формат неверный. Пример: Яблоко, 100</b>', reply_markup=kb.back_kb)
         return
     
     data = await state.get_data()
@@ -920,7 +968,7 @@ async def preset_food(message: Message, state: FSMContext):
     food_items.append({'food_name': food_name, 'weight': weight})
     await state.update_data(food_items=food_items)
     await save_fsm_state(message.from_user.id, 'PresetFSM:food', {'preset_name': data['preset_name'], 'food_items': food_items})
-    await message.answer('<b>Добавлено! Введите следующее блюдо или "готово" для завершения.</b>')
+    await message.answer('<b>Добавлено! Введите следующее блюдо или "готово" для завершения.</b>', reply_markup=kb.back_kb)
 
 # --- Трекер воды с FSM ---
 @router.message(Command('water'))

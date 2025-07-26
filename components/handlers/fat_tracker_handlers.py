@@ -116,11 +116,17 @@ async def start_new_measurement(callback: CallbackQuery, state: FSMContext):
 @router.message(FatTracker.waist)
 async def process_waist(message: Message, state: FSMContext):
     """Обработка ввода обхвата талии"""
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await message.answer("Измерение отменено", reply_markup=fat_tracker_kb)
+        return
+    
     try:
         waist = float(message.text.replace(',', '.'))
         if waist < 50 or waist > 150:
             await message.answer(
-                "❌ Некорректное значение!\nОбхват талии должен быть от 50 до 150 см."
+                "❌ Некорректное значение!\nОбхват талии должен быть от 50 до 150 см.",
+                reply_markup=back_kb
             )
             return
         
@@ -141,17 +147,24 @@ async def process_waist(message: Message, state: FSMContext):
         
     except ValueError:
         await message.answer(
-            "❌ Некорректный формат!\nВведите число (например: 75.5)"
+            "❌ Некорректный формат!\nВведите число (например: 75.5)",
+            reply_markup=back_kb
         )
 
 @router.message(FatTracker.hip)
 async def process_hip(message: Message, state: FSMContext):
     """Обработка ввода обхвата бедер"""
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await message.answer("Измерение отменено", reply_markup=fat_tracker_kb)
+        return
+    
     try:
         hip = float(message.text.replace(',', '.'))
         if hip < 60 or hip > 200:
             await message.answer(
-                "❌ Некорректное значение!\nОбхват бедер должен быть от 60 до 200 см."
+                "❌ Некорректное значение!\nОбхват бедер должен быть от 60 до 200 см.",
+                reply_markup=back_kb
             )
             return
         
@@ -191,12 +204,18 @@ async def process_hip(message: Message, state: FSMContext):
         
     except ValueError:
         await message.answer(
-            "❌ Некорректный формат!\nВведите число (например: 95.0)"
+            "❌ Некорректный формат!\nВведите число (например: 95.0)",
+            reply_markup=back_kb
         )
 
 @router.message(FatTracker.neck)
 async def process_neck(message: Message, state: FSMContext):
     """Обработка ввода обхвата шеи"""
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await message.answer("Измерение отменено", reply_markup=fat_tracker_kb)
+        return
+    
     neck = None
     
     if message.text != '/skip':
@@ -204,12 +223,14 @@ async def process_neck(message: Message, state: FSMContext):
             neck = float(message.text.replace(',', '.'))
             if neck < 25 or neck > 50:
                 await message.answer(
-                    "❌ Некорректное значение!\nОбхват шеи должен быть от 25 до 50 см."
+                    "❌ Некорректное значение!\nОбхват шеи должен быть от 25 до 50 см.",
+                    reply_markup=back_kb
                 )
                 return
         except ValueError:
             await message.answer(
-                "❌ Некорректный формат!\nВведите число или /skip"
+                "❌ Некорректный формат!\nВведите число или /skip",
+                reply_markup=back_kb
             )
             return
     
@@ -233,6 +254,11 @@ async def process_neck(message: Message, state: FSMContext):
 @router.message(FatTracker.goal)
 async def process_goal(message: Message, state: FSMContext):
     """Обработка ввода целевого процента жира и расчет результата"""
+    if message.text.lower() in ['отмена', 'назад']:
+        await state.clear()
+        await message.answer("Измерение отменено", reply_markup=fat_tracker_kb)
+        return
+    
     goal = None
     
     if message.text != '/skip':
@@ -242,12 +268,14 @@ async def process_goal(message: Message, state: FSMContext):
             goal = float(goal_text)
             if goal < 5 or goal > 50:
                 await message.answer(
-                    "❌ Некорректное значение!\nЦель должна быть от 5 до 50%."
+                    "❌ Некорректное значение!\nЦель должна быть от 5 до 50%.",
+                    reply_markup=back_kb
                 )
                 return
         except ValueError:
             await message.answer(
-                "❌ Некорректный формат!\nВведите число или /skip"
+                "❌ Некорректный формат!\nВведите число или /skip",
+                reply_markup=back_kb
             )
             return
     
