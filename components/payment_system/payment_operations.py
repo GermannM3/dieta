@@ -138,33 +138,44 @@ class PaymentManager:
             bool: True если платеж подтвержден успешно
         """
         try:
+            print(f"DEBUG: confirm_payment called with payment_id: {payment_id}")
+            
             # Получаем информацию о платеже из YooMoney
+            print(f"DEBUG: Getting payment info from YooKassa...")
             payment = Payment.find_one(payment_id)
+            print(f"DEBUG: Payment status: {payment.status}")
             
             if payment.status == 'succeeded':
+                print(f"DEBUG: Payment is succeeded, updating subscription...")
                 # Обновляем статус подписки в БД
                 async with async_session() as session:
+                    print(f"DEBUG: Searching for subscription with payment_id: {payment_id}")
                     subscription = await session.execute(
                         select(Subscription).where(Subscription.payment_id == payment_id)
                     )
                     subscription = subscription.scalar_one_or_none()
+                    print(f"DEBUG: Found subscription: {subscription}")
                     
                     if subscription:
+                        print(f"DEBUG: Updating subscription status to 'completed'")
                         subscription.status = 'completed'
                         await session.commit()
+                        print(f"DEBUG: Subscription updated successfully")
                         return True
                     else:
-                        print(f"Подписка с payment_id {payment_id} не найдена")
+                        print(f"ERROR: Subscription with payment_id {payment_id} not found")
                         return False
             else:
-                print(f"Платеж {payment_id} не был успешным. Статус: {payment.status}")
+                print(f"ERROR: Payment {payment_id} is not succeeded. Status: {payment.status}")
                 return False
                 
         except YooKassaError as e:
-            print(f"Ошибка YooMoney при подтверждении платежа: {e}")
+            print(f"ERROR: YooKassaError in confirm_payment: {e}")
             return False
         except Exception as e:
-            print(f"Ошибка подтверждения платежа: {e}")
+            print(f"ERROR: General exception in confirm_payment: {e}")
+            import traceback
+            print(f"ERROR: Traceback: {traceback.format_exc()}")
             return False
     
     @staticmethod

@@ -185,22 +185,31 @@ async def pre_checkout_handler(pre_checkout: PreCheckoutQuery):
 @router.message(F.successful_payment)
 async def successful_payment_handler(message: Message, state: FSMContext):
     """Обработчик успешного платежа"""
-    payment_id = message.successful_payment.invoice_payload
-    
     try:
+        print(f"DEBUG: Successful payment received - User: {message.from_user.id}")
+        print(f"DEBUG: Payment details: {message.successful_payment}")
+        
+        payment_id = message.successful_payment.invoice_payload
+        print(f"DEBUG: Payment ID from payload: {payment_id}")
+        
         # Подтверждаем платеж
+        print(f"DEBUG: Calling PaymentManager.confirm_payment with ID: {payment_id}")
         success = await PaymentManager.confirm_payment(payment_id)
+        print(f"DEBUG: PaymentManager.confirm_payment result: {success}")
         
         if success:
             # Получаем информацию о подписке
             async with async_session() as session:
+                print(f"DEBUG: Searching for subscription with payment_id: {payment_id}")
                 subscription = await session.execute(
                     select(Subscription).where(Subscription.payment_id == payment_id)
                 )
                 subscription = subscription.scalar_one_or_none()
+                print(f"DEBUG: Found subscription: {subscription}")
                 
                 if subscription:
                     subscription_type = subscription.subscription_type
+                    print(f"DEBUG: Subscription type: {subscription_type}")
                     
                     if subscription_type == 'diet_consultant':
                         await message.answer(
@@ -210,6 +219,7 @@ async def successful_payment_handler(message: Message, state: FSMContext):
                             "⏰ Подписка действует до: " + subscription.end_date.strftime("%d.%m.%Y"),
                             parse_mode="HTML"
                         )
+                        print(f"DEBUG: Diet consultant subscription activated for user {message.from_user.id}")
                     elif subscription_type == 'menu_generator':
                         await message.answer(
                             "🎉 <b>Подписка на генерацию меню активирована!</b>\n\n"
@@ -218,16 +228,23 @@ async def successful_payment_handler(message: Message, state: FSMContext):
                             "⏰ Подписка действует до: " + subscription.end_date.strftime("%d.%m.%Y"),
                             parse_mode="HTML"
                         )
+                        print(f"DEBUG: Menu generator subscription activated for user {message.from_user.id}")
                     
                     await state.clear()
+                    print(f"DEBUG: State cleared for user {message.from_user.id}")
                 else:
+                    print(f"ERROR: Subscription not found for payment_id: {payment_id}")
                     await message.answer("❌ Ошибка активации подписки. Обратитесь в поддержку.")
         else:
+            print(f"ERROR: PaymentManager.confirm_payment returned False for payment_id: {payment_id}")
             await message.answer("❌ Ошибка подтверждения платежа. Обратитесь в поддержку.")
             
     except Exception as e:
+        print(f"ERROR: Exception in successful_payment_handler: {e}")
+        print(f"ERROR: Exception type: {type(e)}")
+        import traceback
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
         await message.answer("❌ Произошла ошибка при активации подписки. Обратитесь в поддержку.")
-        print(f"Ошибка обработки успешного платежа: {e}")
 
 @router.message(Command("subscription"))
 async def subscription_info_handler(message: Message):
