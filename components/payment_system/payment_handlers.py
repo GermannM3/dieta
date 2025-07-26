@@ -7,6 +7,7 @@ from database.init_database import async_session, User, Subscription
 from sqlalchemy import select
 from .payment_operations import PaymentManager
 import os
+import json
 
 router = Router()
 
@@ -59,7 +60,27 @@ async def diet_consultant_handler(message: Message, state: FSMContext):
                 payload=payment_info['payment_id'],
                 currency="RUB",
                 prices=[LabeledPrice(label="Подписка на 7 дней", amount=SUBSCRIPTION_PRICE * 100)],
-                provider_token=YOOKASSA_PAYMENT_TOKEN
+                provider_token=YOOKASSA_PAYMENT_TOKEN,
+                need_email=True,
+                send_email_to_provider=True,
+                provider_data=json.dumps({
+                    "receipt": {
+                        "items": [
+                            {
+                                "description": "Подписка на личного диетолога на 7 дней",
+                                "quantity": 1,
+                                "amount": {
+                                    "value": float(SUBSCRIPTION_PRICE),
+                                    "currency": "RUB"
+                                },
+                                "vat_code": 1,
+                                "payment_mode": "full_payment",
+                                "payment_subject": "service"
+                            }
+                        ],
+                        "tax_system_code": 1
+                    }
+                })
             )
             
             await state.set_state(PaymentStates.waiting_for_payment)
@@ -111,7 +132,27 @@ async def menu_generator_handler(message: Message, state: FSMContext):
                 payload=payment_info['payment_id'],
                 currency="RUB",
                 prices=[LabeledPrice(label="Подписка на 7 дней", amount=SUBSCRIPTION_PRICE * 100)],
-                provider_token=YOOKASSA_PAYMENT_TOKEN
+                provider_token=YOOKASSA_PAYMENT_TOKEN,
+                need_email=True,
+                send_email_to_provider=True,
+                provider_data=json.dumps({
+                    "receipt": {
+                        "items": [
+                            {
+                                "description": "Подписка на генерацию персонального меню на 7 дней",
+                                "quantity": 1,
+                                "amount": {
+                                    "value": float(SUBSCRIPTION_PRICE),
+                                    "currency": "RUB"
+                                },
+                                "vat_code": 1,
+                                "payment_mode": "full_payment",
+                                "payment_subject": "service"
+                            }
+                        ],
+                        "tax_system_code": 1
+                    }
+                })
             )
             
             await state.set_state(PaymentStates.waiting_for_payment)

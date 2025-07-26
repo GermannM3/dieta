@@ -26,7 +26,8 @@ sudo systemctl stop bot
 
 ### 2. Применить изменения
 ```bash
-cd /opt/dieta
+
+
 git pull origin main
 ```
 
