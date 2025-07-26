@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import asyncio
 import logging
 
-from database.crud import add_user_if_not_exists, reset_context, add_to_context, save_fsm_state, get_fsm_state, clear_fsm_state
+from database.crud import add_user_if_not_exists, reset_context, add_to_context, save_fsm_state, get_fsm_state, clear_fsm_state, get_user_profile
 import components.keyboards.user_kb as kb
 from components.states.user_states import Chat, Image
 from api.ai_api.generate_text import translate
@@ -67,26 +67,17 @@ async def start(message: Message, state: FSMContext):
         if saved_data:
             await state.set_data(saved_data)
     
-    # Создаем пользователя в базе через API для веб-приложения
+    # Простая проверка профиля без зависимости от API
     try:
-        # Проверяем, есть ли пользователь в API
-        r = requests.get(f'{API_URL}/api/profile?tg_id={message.from_user.id}')
-        if r.status_code == 200:
-            profile = r.json().get('profile')
-            if not profile.get('name'):
-                # Создаем базовый профиль для веб-приложения
-                profile_data = {
-                    "tg_id": message.from_user.id,
-                    "name": message.from_user.first_name or "Пользователь",
-                    "age": 25,
-                    "gender": "не указан",
-                    "weight": 70.0,
-                    "height": 170.0,
-                    "activity_level": 2
-                }
-                requests.post(f'{API_URL}/api/profile', json=profile_data)
-    except:
-        pass  # Если API недоступен, продолжаем без регистрации
+        # Получаем профиль пользователя напрямую из БД
+        profile = await get_user_profile(message.from_user.id)
+        if not profile or not profile.get('name'):
+            # Профиль не заполнен, но не создаем его автоматически
+            # Пользователь сам заполнит через /profile
+            pass
+    except Exception as e:
+        # Если ошибка - продолжаем без профиля
+        print(f"Ошибка получения профиля: {e}")
     
     await message.answer(
         f'<b>🎉 Привет, {message.from_user.first_name}!</b>\n'

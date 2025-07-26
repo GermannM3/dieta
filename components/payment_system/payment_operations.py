@@ -9,16 +9,16 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Настройки YooMoney
-YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID', '1097156')
+YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID', '390540012')
 YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY', 'live_4nHajHuzYGMrBPFLXQojoRW1_6ay2jy7SqSBUl16JOA')
-YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '1097156:live_4nHajHuzYGMrBPFLXQojoRW1_6ay2jy7SqSBUl16JOA')
+YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '390540012:LIVE:73839')
 
 # Настройки подписки
 SUBSCRIPTION_PRICE = int(os.getenv('SUBSCRIPTION_PRICE', '200'))
 SUBSCRIPTION_DURATION_DAYS = int(os.getenv('SUBSCRIPTION_DURATION_DAYS', '7'))
 
 # Инициализация YooMoney
-Configuration.account_id = "1097156"
+Configuration.account_id = "390540012"
 Configuration.secret_key = os.getenv('YOOKASSA_SECRET_KEY')
 
 class PaymentManager:
