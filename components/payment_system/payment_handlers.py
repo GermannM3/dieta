@@ -3,7 +3,7 @@ from aiogram.types import Message, PreCheckoutQuery, LabeledPrice
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from database.init_database import async_session, User
+from database.init_database import async_session, User, Subscription
 from sqlalchemy import select
 from .payment_operations import PaymentManager
 import os
@@ -125,7 +125,21 @@ async def menu_generator_handler(message: Message, state: FSMContext):
 @router.pre_checkout_query()
 async def pre_checkout_handler(pre_checkout: PreCheckoutQuery):
     """Обработчик предварительной проверки платежа"""
-    await pre_checkout.answer(ok=True)
+    try:
+        print(f"DEBUG: PreCheckoutQuery received - ID: {pre_checkout.id}, User: {pre_checkout.from_user.id}")
+        
+        # Быстро отвечаем OK (в течение 10 секунд)
+        await pre_checkout.answer(ok=True)
+        
+        print(f"DEBUG: PreCheckoutQuery answered successfully - ID: {pre_checkout.id}")
+        
+    except Exception as e:
+        print(f"ERROR: PreCheckoutQuery failed - ID: {pre_checkout.id}, Error: {e}")
+        # В случае ошибки все равно отвечаем OK, чтобы не блокировать платеж
+        try:
+            await pre_checkout.answer(ok=True)
+        except:
+            pass
 
 @router.message(F.successful_payment)
 async def successful_payment_handler(message: Message, state: FSMContext):
