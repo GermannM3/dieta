@@ -28,7 +28,7 @@ REQUEST_TIMEOUT = 30  # Увеличенный таймаут для всех з
 CONNECTION_TIMEOUT = 10  # Таймаут подключения
 
 # API URL для обращения к серверу
-API_URL = os.getenv('API_BASE_URL', 'http://api:8000')
+API_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 
 router = Router()
 
@@ -564,9 +564,6 @@ class PresetFSM(StatesGroup):
 class WaterFSM(StatesGroup):
     add = State()
 
-class MoodFSM(StatesGroup):
-    waiting = State()
-
 # --- Добавление еды ---
 @router.message(Command('addmeal'))
 @router.message(lambda message: message.text == 'Добавить еду')
@@ -921,32 +918,6 @@ async def preset_food(message: Message, state: FSMContext):
     await state.update_data(food_items=food_items)
     await save_fsm_state(message.from_user.id, 'PresetFSM:food', {'preset_name': data['preset_name'], 'food_items': food_items})
     await message.answer('<b>Добавлено! Введите следующее блюдо или "готово" для завершения.</b>')
-
-# --- Настроение FSM ---
-@router.message(Command('mood'))
-@router.message(lambda message: message.text == 'Трекер настроения')
-async def mood_command(message: Message, state: FSMContext):
-    # Устанавливаем состояние для трекера настроения
-    await state.set_state(MoodFSM.waiting)
-    await message.answer("Какое у вас настроение? (от 1 до 5)", reply_markup=kb.back_kb)
-    await save_fsm_state(message.from_user.id, 'MoodFSM:waiting')
-
-@router.message(MoodFSM.waiting)
-async def mood_waiting(message: Message, state: FSMContext):
-    if message.text.lower() == 'назад':
-        await state.clear()
-        await clear_fsm_state(message.from_user.id)
-        await message.answer("Действие отменено", reply_markup=kb.main_menu_kb)
-        return
-        
-    if message.text not in ['1', '2', '3', '4', '5']:
-        await message.answer("Введите число от 1 до 5")
-        return
-    await message.answer(f"Настроение сохранено: {message.text}", reply_markup=kb.main_menu_kb)
-    await state.clear()
-    await clear_fsm_state(message.from_user.id)
-
-# Убираем обработчик "Беседа с ИИ" - больше не используется
 
 # --- Трекер воды с FSM ---
 @router.message(Command('water'))
@@ -1758,8 +1729,7 @@ async def my_subscriptions_handler(message: Message):
             response += f"⏰ Осталось дней: {diet_subscription['days_left']}\n"
             response += f"📅 Действует до: {diet_subscription['end_date'].strftime('%d.%m.%Y')}\n\n"
         else:
-            response += "👨‍⚕️ <b>Личный диетолог:</b> ❌ Неактивна\n"
-            response += "💳 Для активации: /diet_consultant\n\n"
+            response += "👨‍⚕️ <b>Личный диетолог:</b> ❌ Неактивна\n\n"
         
         # Информация о подписке на меню
         if menu_subscription and menu_subscription['is_active']:
@@ -1767,32 +1737,10 @@ async def my_subscriptions_handler(message: Message):
             response += f"⏰ Осталось дней: {menu_subscription['days_left']}\n"
             response += f"📅 Действует до: {menu_subscription['end_date'].strftime('%d.%m.%Y')}\n\n"
         else:
-            response += "🍽️ <b>Генерация меню:</b> ❌ Неактивна\n"
-            response += "💳 Для активации: /menu_generator\n\n"
+            response += "🍽️ <b>Генерация меню:</b> ❌ Неактивна\n\n"
         
         await message.answer(response, parse_mode="HTML")
         
     except Exception as e:
-        await message.answer("❌ Ошибка получения информации о подписках.")
-        print(f"Ошибка получения информации о подписках: {e}")
-
-@router.message(lambda message: message.text == '🛒 Купить подписку')
-async def buy_subscription_handler(message: Message):
-    """Показывает доступные подписки для покупки"""
-    await message.answer(
-        "🛒 <b>Доступные подписки:</b>\n\n"
-        "👨‍⚕️ <b>Личный диетолог</b> - 200₽/7 дней\n"
-        "• Персональные консультации от ИИ-диетолога\n"
-        "• Ответы на любые вопросы о питании\n"
-        "• Рекомендации по диете и здоровью\n\n"
-        "🍽️ <b>Генерация меню</b> - 200₽/7 дней\n"
-        "• Персональное меню на любой период\n"
-        "• Учет ваших целей и предпочтений\n"
-        "• Сбалансированное питание\n\n"
-        "💳 <b>Для покупки используйте команды:</b>\n"
-        "/diet_consultant - Личный диетолог\n"
-        "/menu_generator - Генерация меню\n\n"
-        "📋 <b>Проверить текущие подписки:</b>\n"
-        "/subscription",
-        parse_mode="HTML"
-    )
+        await message.answer("❌ Ошибка получения информации о подписках")
+        print(f"Ошибка получения подписок: {e}")

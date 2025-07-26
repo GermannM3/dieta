@@ -4,11 +4,10 @@ main_menu_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text='Профиль'), KeyboardButton(text='Добавить еду')],
         [KeyboardButton(text='История приёмов пищи'), KeyboardButton(text='Мои шаблоны')],
-        [KeyboardButton(text='Трекер воды'), KeyboardButton(text='Трекер настроения')],
-        [KeyboardButton(text='Трекер жировой массы'), KeyboardButton(text='Баллы и прогресс')],
-        [KeyboardButton(text='Сгенерировать меню'), KeyboardButton(text='Личный диетолог')],
-        [KeyboardButton(text='Статистика'), KeyboardButton(text='Распознать еду на фото')],
-        [KeyboardButton(text='💳 Мои подписки'), KeyboardButton(text='🛒 Купить подписку')],
+        [KeyboardButton(text='Трекер воды'), KeyboardButton(text='Трекер жировой массы')],
+        [KeyboardButton(text='Баллы и прогресс'), KeyboardButton(text='Сгенерировать меню')],
+        [KeyboardButton(text='Личный диетолог'), KeyboardButton(text='Статистика')],
+        [KeyboardButton(text='Распознать еду на фото'), KeyboardButton(text='💳 Мои подписки')],
     ],
     resize_keyboard=True
 )
