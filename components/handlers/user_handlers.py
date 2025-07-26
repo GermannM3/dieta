@@ -1713,6 +1713,8 @@ async def safe_api_request(method, url, **kwargs):
 @router.message(lambda message: message.text == '💳 Мои подписки')
 async def my_subscriptions_handler(message: Message):
     """Показывает информацию о подписках пользователя"""
+    import sys, traceback
+    print("DEBUG: my_subscriptions_handler called", file=sys.stderr)
     user_id = message.from_user.id
     
     try:
@@ -1720,6 +1722,8 @@ async def my_subscriptions_handler(message: Message):
         from database.init_database import async_session, Subscription
         from sqlalchemy import select, and_
         from datetime import datetime
+        
+        print(f"DEBUG: Checking subscriptions for user {user_id}", file=sys.stderr)
         
         async with async_session() as session:
             # Получаем активные подписки
@@ -1746,6 +1750,9 @@ async def my_subscriptions_handler(message: Message):
                 ).order_by(Subscription.end_date.desc())
             )
             menu_subscription = menu_subscription.scalar_one_or_none()
+        
+        print(f"DEBUG: diet_subscription found: {diet_subscription is not None}", file=sys.stderr)
+        print(f"DEBUG: menu_subscription found: {menu_subscription is not None}", file=sys.stderr)
         
         response = "📋 <b>Ваши подписки:</b>\n\n"
         
@@ -1774,8 +1781,11 @@ async def my_subscriptions_handler(message: Message):
             response += "• Нажмите 'Сгенерировать меню' для персонального меню\n"
             response += "• При первом использовании вам предложат оплату\n"
         
+        print(f"DEBUG: Sending response: {response[:100]}...", file=sys.stderr)
         await message.answer(response, parse_mode="HTML")
         
     except Exception as e:
+        print("DEBUG: my_subscriptions_handler exception", file=sys.stderr)
+        traceback.print_exc()
         await message.answer("❌ Ошибка получения информации о подписках")
         print(f"Ошибка получения подписок: {e}")
