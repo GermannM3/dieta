@@ -1715,6 +1715,8 @@ async def my_subscriptions_handler(message: Message):
     """Показывает информацию о подписках пользователя"""
     import sys, traceback
     print("DEBUG: my_subscriptions_handler called", file=sys.stderr)
+    print(f"DEBUG: Message text: '{message.text}'", file=sys.stderr)
+    print(f"DEBUG: Message text == '💳 Мои подписки': {message.text == '💳 Мои подписки'}", file=sys.stderr)
     user_id = message.from_user.id
     
     try:
@@ -1789,3 +1791,22 @@ async def my_subscriptions_handler(message: Message):
         traceback.print_exc()
         await message.answer("❌ Ошибка получения информации о подписках")
         print(f"Ошибка получения подписок: {e}")
+
+# Добавляем в конец файла, перед @router.message()
+@router.message()
+async def debug_all_messages(message: Message):
+    """Debug обработчик для всех сообщений"""
+    import sys
+    print(f"DEBUG: All messages handler - text: '{message.text}'", file=sys.stderr)
+    print(f"DEBUG: Message type: {type(message.text)}", file=sys.stderr)
+    print(f"DEBUG: Message length: {len(message.text) if message.text else 0}", file=sys.stderr)
+    print(f"DEBUG: Message bytes: {message.text.encode('utf-8') if message.text else b''}", file=sys.stderr)
+    
+    # Если это "Мои подписки", обрабатываем здесь
+    if message.text == '💳 Мои подписки':
+        print("DEBUG: Found 'Мои подписки' in debug handler!", file=sys.stderr)
+        await my_subscriptions_handler(message)
+        return
+    
+    # Для остальных сообщений - стандартная обработка
+    await other(message, None)  # Передаем None вместо state
