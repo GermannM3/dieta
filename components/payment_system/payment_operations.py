@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Настройки YooMoney
 YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID', '1097156')
 YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY', 'live_4nHajHuzYGMrBPFLXQojoRW1_6ay2jy7SqSBUl16JOA')
-YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '1097156:LIVE:73839')
+YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '390540012:LIVE:73839')
 
 # Настройки подписки
 SUBSCRIPTION_PRICE = int(os.getenv('SUBSCRIPTION_PRICE', '200'))

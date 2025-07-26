@@ -15,7 +15,7 @@ class PaymentStates(StatesGroup):
     waiting_for_payment = State()
 
 # Настройки платежей
-YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '1097156:LIVE:73839')
+YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '390540012:LIVE:73839')
 SUBSCRIPTION_PRICE = int(os.getenv('SUBSCRIPTION_PRICE', '200'))
 
 @router.message(Command("diet_consultant"))
