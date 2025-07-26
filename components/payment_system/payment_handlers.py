@@ -15,7 +15,7 @@ class PaymentStates(StatesGroup):
     waiting_for_payment = State()
 
 # Настройки платежей
-YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '1097156:LIVE:73839')
+#YOOKASSA_PAYMENT_TOKEN = os.getenv('YOOKASSA_PAYMENT_TOKEN', '1097156:LIVE:73839')
 SUBSCRIPTION_PRICE = int(os.getenv('SUBSCRIPTION_PRICE', '200'))
 
 @router.message(Command("diet_consultant"))
@@ -57,7 +57,6 @@ async def diet_consultant_handler(message: Message, state: FSMContext):
                 title="Личный диетолог",
                 description="Персональные консультации диетолога на 7 дней",
                 payload=payment_info['payment_id'],
-                provider_token=YOOKASSA_PAYMENT_TOKEN,
                 currency="RUB",
                 prices=[LabeledPrice(label="Подписка на 7 дней", amount=SUBSCRIPTION_PRICE * 100)]
             )
@@ -109,7 +108,6 @@ async def menu_generator_handler(message: Message, state: FSMContext):
                 title="Генерация меню",
                 description="Персональное меню на 7 дней",
                 payload=payment_info['payment_id'],
-                provider_token=YOOKASSA_PAYMENT_TOKEN,
                 currency="RUB",
                 prices=[LabeledPrice(label="Подписка на 7 дней", amount=SUBSCRIPTION_PRICE * 100)]
             )
