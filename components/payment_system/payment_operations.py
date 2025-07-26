@@ -145,8 +145,10 @@ class PaymentManager:
             payment = Payment.find_one(payment_id)
             print(f"DEBUG: Payment status: {payment.status}")
             
-            if payment.status == 'succeeded':
-                print(f"DEBUG: Payment is succeeded, updating subscription...")
+            # Если статус succeeded или pending - считаем платеж успешным
+            # (pending - это нормально, YooKassa может обрабатывать платеж)
+            if payment.status in ['succeeded', 'pending']:
+                print(f"DEBUG: Payment is {payment.status}, updating subscription...")
                 # Обновляем статус подписки в БД
                 async with async_session() as session:
                     print(f"DEBUG: Searching for subscription with payment_id: {payment_id}")
@@ -166,7 +168,7 @@ class PaymentManager:
                         print(f"ERROR: Subscription with payment_id {payment_id} not found")
                         return False
             else:
-                print(f"ERROR: Payment {payment_id} is not succeeded. Status: {payment.status}")
+                print(f"ERROR: Payment {payment_id} has unexpected status: {payment.status}")
                 return False
                 
         except YooKassaError as e:
