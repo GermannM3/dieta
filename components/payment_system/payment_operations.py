@@ -36,6 +36,14 @@ class PaymentManager:
         Returns:
             dict: Информация о платеже
         """
+        import sys
+        print("DEBUG: PaymentManager.create_payment called", file=sys.stderr)
+        print("DEBUG: YOOKASSA_SHOP_ID =", YOOKASSA_SHOP_ID, file=sys.stderr)
+        print("DEBUG: YOOKASSA_SECRET_KEY =", YOOKASSA_SECRET_KEY[:20] + "..." if len(YOOKASSA_SECRET_KEY) > 20 else YOOKASSA_SECRET_KEY, file=sys.stderr)
+        print("DEBUG: YOOKASSA_PAYMENT_TOKEN =", YOOKASSA_PAYMENT_TOKEN, file=sys.stderr)
+        print("DEBUG: Configuration.account_id =", Configuration.account_id, file=sys.stderr)
+        print("DEBUG: Configuration.secret_key =", Configuration.secret_key[:20] + "..." if Configuration.secret_key and len(Configuration.secret_key) > 20 else Configuration.secret_key, file=sys.stderr)
+        
         try:
             # Создаем уникальный ID платежа
             payment_idempotence_key = str(uuid.uuid4())
@@ -49,6 +57,8 @@ class PaymentManager:
                 description = "Персональное меню на 7 дней"
             else:
                 raise ValueError(f"Неизвестный тип подписки: {subscription_type}")
+            
+            print(f"DEBUG: Creating payment for {subscription_type}, amount: {SUBSCRIPTION_PRICE}", file=sys.stderr)
             
             # Создаем платеж в YooMoney
             payment = Payment.create(
@@ -80,6 +90,8 @@ class PaymentManager:
                 payment_idempotence_key
             )
             
+            print(f"DEBUG: Payment created successfully, ID: {payment.id}", file=sys.stderr)
+            
             # Сохраняем информацию о подписке в БД
             async with async_session() as session:
                 subscription = Subscription(
@@ -95,6 +107,8 @@ class PaymentManager:
                 session.add(subscription)
                 await session.commit()
             
+            print(f"DEBUG: Subscription saved to DB", file=sys.stderr)
+            
             return {
                 'payment_id': payment.id,
                 'confirmation_url': payment.confirmation.confirmation_url,
@@ -105,9 +119,11 @@ class PaymentManager:
             }
             
         except YooKassaError as e:
+            print(f"DEBUG: YooKassaError occurred: {e}", file=sys.stderr)
             print(f"Ошибка YooMoney: {e}")
             raise
         except Exception as e:
+            print(f"DEBUG: General exception in create_payment: {e}", file=sys.stderr)
             print(f"Ошибка создания платежа: {e}")
             raise
     
