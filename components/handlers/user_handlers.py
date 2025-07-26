@@ -561,6 +561,9 @@ class PresetFSM(StatesGroup):
     name = State()
     food = State()
 
+class SimplePresetFSM(StatesGroup):
+    waiting = State()
+
 class WaterFSM(StatesGroup):
     add = State()
 
@@ -1304,16 +1307,17 @@ async def create_template_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await callback.message.edit_text(
         "<b>📝 Создание нового шаблона</b>\n\n"
-        "Введите название шаблона:\n\n"
-        "💡 <b>Примеры названий:</b>\n"
-        "• Завтрак понедельник\n"
-        "• Обед фитнес\n"
-        "• Перекус офисный\n\n"
-        "✏️ <b>Введите название:</b>",
+        "💡 <b>Простой формат:</b>\n"
+        "Введите всё в одну строку:\n\n"
+        "• <b>С названием:</b>\n"
+        "Завтрак: яичница из двух яиц 200 + кофе без сахара 250\n\n"
+        "• <b>Без названия:</b>\n"
+        "яичница из двух яиц 200 + кофе без сахара 250\n\n"
+        "✏️ <b>Введите шаблон:</b>",
         reply_markup=kb.back_kb
     )
-    await state.set_state(PresetFSM.name)
-    await save_fsm_state(callback.from_user.id, 'PresetFSM:name')
+    await state.set_state(SimplePresetFSM.waiting)
+    await save_fsm_state(callback.from_user.id, 'SimplePresetFSM:waiting')
 
 @router.callback_query(F.data == 'create_template_from_addmeal')
 async def create_template_from_addmeal_callback(callback: CallbackQuery, state: FSMContext):
@@ -1321,16 +1325,73 @@ async def create_template_from_addmeal_callback(callback: CallbackQuery, state: 
     await callback.answer()
     await callback.message.edit_text(
         "<b>📝 Создание нового шаблона</b>\n\n"
-        "Введите название шаблона:\n\n"
-        "💡 <b>Примеры названий:</b>\n"
-        "• Завтрак понедельник\n"
-        "• Обед фитнес\n"
-        "• Перекус офисный\n\n"
-        "✏️ <b>Введите название:</b>",
+        "💡 <b>Простой формат:</b>\n"
+        "Введите всё в одну строку:\n\n"
+        "• <b>С названием:</b>\n"
+        "Завтрак: яичница из двух яиц 200 + кофе без сахара 250\n\n"
+        "• <b>Без названия:</b>\n"
+        "яичница из двух яиц 200 + кофе без сахара 250\n\n"
+        "✏️ <b>Введите шаблон:</b>",
         reply_markup=kb.back_kb
     )
-    await state.set_state(PresetFSM.name)
-    await save_fsm_state(callback.from_user.id, 'PresetFSM:name')
+    await state.set_state(SimplePresetFSM.waiting)
+    await save_fsm_state(callback.from_user.id, 'SimplePresetFSM:waiting')
+
+@router.message(SimplePresetFSM.waiting)
+async def simple_preset_waiting(message: Message, state: FSMContext):
+    """Обработчик простого создания шаблона"""
+    if message.text.lower() == 'назад':
+        await state.clear()
+        await clear_fsm_state(message.from_user.id)
+        await message.answer("Действие отменено", reply_markup=kb.main_menu_kb)
+        return
+    
+    try:
+        # Парсим простой формат
+        name, food_items = parse_simple_preset(message.text)
+        
+        # Сохраняем шаблон
+        import requests
+        payload = {
+            'user_id': message.from_user.id,
+            'name': name,
+            'food_items': food_items
+        }
+        
+        r = requests.post(f'{API_URL}/api/preset', json=payload, timeout=REQUEST_TIMEOUT)
+        if r.status_code == 200:
+            # Формируем ответ с информацией о созданном шаблоне
+            response = f"✅ <b>Шаблон '{name}' создан!</b>\n\n"
+            response += "<b>Содержимое:</b>\n"
+            total_calories = 0
+            
+            for item in food_items:
+                response += f"• {item['food_name']} - {item['weight']}г\n"
+                # Примерный расчет калорий (можно улучшить)
+                estimated_calories = int(item['weight'] * 0.8)  # Примерно 80 ккал на 100г
+                total_calories += estimated_calories
+            
+            response += f"\n📊 <b>Примерная калорийность:</b> {total_calories} ккал"
+            
+            await message.answer(response, reply_markup=kb.main_menu_kb)
+        else:
+            await message.answer('<b>❌ Ошибка сохранения шаблона</b>', reply_markup=kb.main_menu_kb)
+            
+    except ValueError as e:
+        await message.answer(
+            f"❌ <b>Ошибка в формате:</b>\n{str(e)}\n\n"
+            "💡 <b>Правильный формат:</b>\n"
+            "• Завтрак: яичница из двух яиц 200 + кофе без сахара 250\n"
+            "• яичница из двух яиц 200 + кофе без сахара 250",
+            reply_markup=kb.back_kb
+        )
+        return
+    except Exception as e:
+        error_msg = str(e).replace('<', '&lt;').replace('>', '&gt;')
+        await message.answer(f'<b>❌ Ошибка соединения с сервером: {error_msg}</b>', reply_markup=kb.main_menu_kb)
+    finally:
+        await state.clear()
+        await clear_fsm_state(message.from_user.id)
 
 # /dietolog
 @router.message(Command('dietolog'))
@@ -1792,3 +1853,59 @@ async def safe_api_request(method, url, **kwargs):
         status_code = 500
         def json(self): return {}
     return MockResponse()
+
+# Функция для парсинга простого формата шаблона
+def parse_simple_preset(text: str) -> tuple[str, list]:
+    """
+    Парсит простой формат шаблона: "название: блюдо1 вес1 + блюдо2 вес2"
+    Пример: "Завтрак: яичница из двух яиц 200 + кофе без сахара 250"
+    """
+    try:
+        # Разделяем на название и блюда
+        if ':' in text:
+            name_part, foods_part = text.split(':', 1)
+            name = name_part.strip()
+            foods_text = foods_part.strip()
+        else:
+            # Если нет двоеточия, считаем что название - первое слово
+            parts = text.split('+', 1)
+            if len(parts) == 1:
+                raise ValueError("Не найдены блюда")
+            name = parts[0].split()[0]  # Первое слово как название
+            foods_text = text
+        
+        # Разделяем блюда по "+"
+        food_items = []
+        foods_list = foods_text.split('+')
+        
+        for food_item in foods_list:
+            food_item = food_item.strip()
+            if not food_item:
+                continue
+                
+            # Ищем вес в конце (последнее число)
+            words = food_item.split()
+            if len(words) < 2:
+                continue
+                
+            # Проверяем, является ли последнее слово числом
+            try:
+                weight = float(words[-1])
+                food_name = ' '.join(words[:-1])
+            except ValueError:
+                # Если последнее слово не число, используем весь текст как название
+                food_name = food_item
+                weight = 100  # Вес по умолчанию
+            
+            food_items.append({
+                'food_name': food_name.strip(),
+                'weight': weight
+            })
+        
+        if not food_items:
+            raise ValueError("Не найдены блюда")
+            
+        return name, food_items
+        
+    except Exception as e:
+        raise ValueError(f"Ошибка парсинга: {str(e)}")
