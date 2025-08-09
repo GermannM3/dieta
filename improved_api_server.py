@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 import pytz
 from api.auth_api import register_user, login_user, confirm_user, get_current_user, UserRegister, UserLogin, UserConfirm
 from database.crud import update_user_profile
-from database.init_database import WebUser, WebProfile
+from database.init_database import WebUser, WebProfile, WebMeal, async_session, User
 from components.payment_system.payment_operations import check_premium
 
 load_dotenv()
@@ -802,45 +802,72 @@ async def get_smtp_config():
         "examples": EmailService.get_smtp_config_examples()
     }
 
-# ===== АДМИН ПАНЕЛЬ API =====
+# ===== WEB MEALS (JWT) =====
+
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "germannm@vk.com")
+
+@app.post("/api/web/meals")
+async def add_web_meal(meal: dict, current_user: WebUser = Depends(get_current_user)):
+    """Добавление приёма пищи для web-пользователя по JWT"""
+    required = ["food_name", "weight_grams", "calories"]
+    for f in required:
+        if f not in meal:
+            raise HTTPException(status_code=400, detail=f"Отсутствует поле {f}")
+    try:
+        async with async_session() as session:
+            new_meal = WebMeal(
+                user_id=current_user.id,
+                date=meal.get("date") or datetime.utcnow().strftime("%Y-%m-%d"),
+                time=meal.get("time") or datetime.utcnow().strftime("%H:%M:%S"),
+                food_name=meal["food_name"],
+                weight_grams=float(meal["weight_grams"]),
+                calories=float(meal["calories"]),
+                protein=float(meal.get("protein") or 0),
+                fat=float(meal.get("fat") or 0),
+                carbs=float(meal.get("carbs") or 0),
+            )
+            session.add(new_meal)
+            await session.commit()
+            await session.refresh(new_meal)
+            return {"status": "ok", "id": new_meal.id}
+    except Exception as e:
+        logging.error(f"Ошибка добавления web-meal: {e}")
+        raise HTTPException(status_code=500, detail="Ошибка добавления приёма пищи")
+
+# ===== АДМИН ПАНЕЛЬ API (по JWT web-пользователя) =====
 
 @app.get("/api/admin/web-users")
-async def get_web_users(current_user: User = Depends(get_current_user)):
-    """Получение списка веб-пользователей для админа"""
-    if not current_user.is_admin:
+async def get_web_users(current_user: WebUser = Depends(get_current_user)):
+    """Список web-пользователей (админ по email)"""
+    if (current_user.email or "").lower() != ADMIN_EMAIL.lower():
         raise HTTPException(status_code=403, detail="Доступ запрещен")
-    
     async with async_session() as session:
-        users = await session.execute(
-            select(User).where(User.tg_id.is_(None))
-        )
-        web_users = users.scalars().all()
-        
+        result = await session.execute(select(WebUser))
+        web_users = result.scalars().all()
         return {
             "users": [
                 {
-                    "id": user.id,
-                    "email": user.email,
-                    "name": user.name,
-                    "is_premium": user.is_premium,
-                    "created_at": user.created_at.isoformat() if user.created_at else None
+                    "id": u.id,
+                    "email": u.email,
+                    "name": u.name,
+                    # признак премиума берём из профиля, если есть
+                    "is_premium": False,
+                    "created_at": u.created_at.isoformat() if getattr(u, "created_at", None) else None,
                 }
-                for user in web_users
+                for u in web_users
             ]
         }
-
+ 
 @app.get("/api/admin/telegram-users")
-async def get_telegram_users(current_user: User = Depends(get_current_user)):
+async def get_telegram_users(current_user: WebUser = Depends(get_current_user)):
     """Получение списка Telegram пользователей для админа"""
-    if not current_user.is_admin:
+    if (current_user.email or "").lower() != ADMIN_EMAIL.lower():
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
     async with async_session() as session:
-        users = await session.execute(
-            select(User).where(User.tg_id.is_not(None))
-        )
-        tg_users = users.scalars().all()
-        
+        users_q = await session.execute(select(User).where(User.tg_id.is_not(None)))
+        tg_users = users_q.scalars().all()
+         
         return {
             "users": [
                 {
@@ -854,14 +881,14 @@ async def get_telegram_users(current_user: User = Depends(get_current_user)):
                 for user in tg_users
             ]
         }
-
+ 
 @app.post("/api/admin/toggle-premium")
 async def toggle_user_premium(
     request: dict,
-    current_user: User = Depends(get_current_user)
+    current_user: WebUser = Depends(get_current_user)
 ):
     """Переключение премиум статуса пользователя"""
-    if not current_user.is_admin:
+    if (current_user.email or "").lower() != ADMIN_EMAIL.lower():
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
     user_id = request.get("user_id")
@@ -873,22 +900,25 @@ async def toggle_user_premium(
     
     async with async_session() as session:
         if user_type == "web":
-            user = await session.execute(
-                select(User).where(User.id == user_id, User.tg_id.is_(None))
-            )
+            # Премиум для web-пользователя храним в его профиле
+            prof_q = await session.execute(select(WebProfile).where(WebProfile.user_id == int(user_id)))
+            profile = prof_q.scalar_one_or_none()
+            if not profile:
+                # создаём пустой профиль при необходимости
+                profile = WebProfile(user_id=int(user_id), is_premium=bool(premium))
+                session.add(profile)
+            else:
+                profile.is_premium = bool(premium)
+            await session.commit()
+            return {"success": True, "message": f"Премиум {'активирован' if premium else 'деактивирован'}"}
         else:
-            user = await session.execute(
-                select(User).where(User.tg_id == user_id)
-            )
-        
-        user = user.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=404, detail="Пользователь не найден")
-        
-        user.is_premium = premium
-        await session.commit()
-        
-        return {"success": True, "message": f"Премиум {'активирован' if premium else 'деактивирован'}"}
+            user_q = await session.execute(select(User).where(User.tg_id == int(user_id)))
+            tgu = user_q.scalar_one_or_none()
+            if not tgu:
+                raise HTTPException(status_code=404, detail="Пользователь не найден")
+            tgu.is_premium = bool(premium)
+            await session.commit()
+            return {"success": True, "message": f"Премиум {'активирован' if premium else 'деактивирован'}"}
 
 # ===== YOOKASSA WEBHOOK =====
 
