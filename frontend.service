@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/dieta/calorie-love-tracker
 ExecStart=/usr/bin/npm start
-Environment=PORT=5173
+Environment=PORT=3000
 Restart=always
 RestartSec=5
 
