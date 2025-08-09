@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Search } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+  .replace(/\/$/, '');
 
 export const MealEntryForm = ({ user, onMealAdded }) => {
   const [foodName, setFoodName] = useState("");
@@ -22,7 +23,7 @@ export const MealEntryForm = ({ user, onMealAdded }) => {
     setFoodName(value);
     if (value.length > 2) {
       try {
-        const response = await fetch(`${API_URL}/api/search_food`, {
+        const response = await fetch(`${API_BASE}/search_food`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -52,7 +53,7 @@ export const MealEntryForm = ({ user, onMealAdded }) => {
     if (!foodName || !weight) return;
     
     try {
-      const response = await fetch(`${API_URL}/api/calculate_calories`, {
+      const response = await fetch(`${API_BASE}/calculate_calories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
