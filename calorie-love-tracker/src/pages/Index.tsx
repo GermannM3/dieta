@@ -23,6 +23,34 @@ const Index = () => {
   const [connectionStatus, setConnectionStatus] = useState('checking'); // 'checking', 'connected', 'error'
 
   useEffect(() => {
+    // Если есть токен бэкенда — пробуем авторизовать через /api/auth/me
+    const tryBackendSession = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return false;
+      try {
+        const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+        const resp = await fetch(`${base}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!resp.ok) return false;
+        const me = await resp.json();
+        // Устанавливаем синтетическую сессию, чтобы показать личный кабинет
+        setSession({ user: { id: me.id, email: me.email } });
+        setUser({
+          user_id: me.id,
+          email: me.email,
+          name: me.name,
+          is_confirmed: me.is_confirmed,
+          created_at: me.created_at,
+        });
+        setLoading(false);
+        return true;
+      } catch (e) {
+        console.error('Backend session check failed:', e);
+        return false;
+      }
+    };
+
     // Проверяем подключение к Supabase
     const checkConnection = async () => {
       try {
@@ -35,10 +63,11 @@ const Index = () => {
       }
     };
 
-    checkConnection();
+    (async () => {
+      await checkConnection();
 
-    // Получаем текущую сессию
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      // Основной источник — Supabase
+      const { data: { session }, error } = await supabase.auth.getSession();
       if (error) {
         console.error("Ошибка получения сессии:", error);
         toast({
@@ -47,19 +76,18 @@ const Index = () => {
           variant: "destructive",
         });
       }
-      
       setSession(session);
       if (session) {
         loadUserProfile(session.user.id);
       } else {
-        setLoading(false);
+        // Если Supabase-сессии нет — пробуем сессию по бэкенд-токену
+        const ok = await tryBackendSession();
+        if (!ok) setLoading(false);
       }
-    });
+    })();
 
-    // Слушаем изменения авторизации
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Слушаем изменения авторизации Supabase
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log("Auth state changed:", _event, session);
       setSession(session);
       if (session) {
@@ -100,14 +128,13 @@ const Index = () => {
   };
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Ошибка",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    // Выходим из Supabase (если был вход через него)
+    await supabase.auth.signOut();
+    // Чистим бэкенд-токен
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setSession(null);
+    setUser(null);
   };
 
   // В начале рендера, после проверки loading
