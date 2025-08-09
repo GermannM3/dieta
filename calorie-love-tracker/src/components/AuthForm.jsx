@@ -14,7 +14,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
   const testApiConnection = async () => {
     try {
       console.log("Тестирование подключения к API...");
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
+      const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const response = await fetch(`${base}/health`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +54,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
 
       if (isLogin) {
         // Вход через наш API
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+        const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+        const response = await fetch(`${base}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -70,8 +72,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
           const data = await response.json();
           console.log("Успешный вход:", data);
           
-          // Сохраняем токен в localStorage
-          localStorage.setItem('authToken', data.access_token);
+          // Сохраняем токен под ключом 'token' (как читает админка)
+          localStorage.setItem('token', data.access_token);
           localStorage.setItem('user', JSON.stringify(data.user));
           
           toast({ 
@@ -86,7 +88,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
         }
       } else {
         // Регистрация через наш API
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
+        const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+        const response = await fetch(`${base}/auth/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -112,7 +115,7 @@ export const AuthForm = ({ onAuthSuccess }) => {
             });
           } else {
             // Если подтверждение не требуется
-            localStorage.setItem('authToken', data.access_token);
+            localStorage.setItem('token', data.access_token);
             localStorage.setItem('user', JSON.stringify(data.user));
             toast({ title: "Регистрация успешна! Добро пожаловать!" });
             onAuthSuccess();
@@ -159,7 +162,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
       console.log("Попытка демо-входа");
       
       // Вход под демо-аккаунтом через наш API
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+      const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const response = await fetch(`${base}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,8 +178,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
       
       if (response.ok) {
         const data = await response.json();
-        // Сохраняем токен в localStorage
-        localStorage.setItem('authToken', data.access_token);
+        // Сохраняем токен под ключом 'token'
+        localStorage.setItem('token', data.access_token);
         localStorage.setItem('user', JSON.stringify(data.user));
         toast({ title: "Вход в демо-режиме успешен!" });
         onAuthSuccess();
@@ -197,8 +201,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
           
           if (registerResponse.ok) {
             const registerData = await registerResponse.json();
-            // Сохраняем токен в localStorage
-            localStorage.setItem('authToken', registerData.access_token);
+            // Сохраняем токен под ключом 'token'
+            localStorage.setItem('token', registerData.access_token);
             localStorage.setItem('user', JSON.stringify(registerData.user));
             toast({ title: "Демо-аккаунт создан! Добро пожаловать!" });
             onAuthSuccess();
