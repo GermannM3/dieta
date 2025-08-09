@@ -95,8 +95,29 @@ export const MealEntryForm = ({ user, onMealAdded }) => {
         return;
       }
 
-      if (user) {
-        // Зарегистрированный пользователь
+      const backendToken = localStorage.getItem('token');
+
+      if (backendToken) {
+        // Отправляем на наш backend (web-пользователь)
+        const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+        const resp = await fetch(`${base}/web/meals`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${backendToken}`,
+          },
+          body: JSON.stringify({
+            food_name: foodName,
+            weight_grams: parseFloat(weight),
+            calories: parseFloat(calories),
+            protein: nutrition?.protein || 0,
+            fat: nutrition?.fat || 0,
+            carbs: nutrition?.carbs || 0,
+          })
+        });
+        if (!resp.ok) throw new Error('Сервер отклонил запись.');
+      } else if (user) {
+        // Зарегистрированный пользователь через Supabase
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser) throw new Error("Пользователь не авторизован");
 
