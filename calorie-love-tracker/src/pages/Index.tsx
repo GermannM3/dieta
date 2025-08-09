@@ -51,6 +51,10 @@ const Index = () => {
       }
     };
 
+    const onBackendAuth = () => {
+      tryBackendSession();
+    };
+
     // Проверяем подключение к Supabase
     const checkConnection = async () => {
       try {
@@ -99,7 +103,12 @@ const Index = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    window.addEventListener('backendAuth', onBackendAuth);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('backendAuth', onBackendAuth);
+    };
   }, []);
 
   const loadUserProfile = async (userId) => {
