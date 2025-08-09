@@ -6,12 +6,22 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
-    port: process.env.PORT || 3000,
+    host: "127.0.0.1",
+    port: Number(process.env.PORT) || 3000,
+    strictPort: true,
+    allowedHosts: [
+      "tvoi-kalkulyator.ru",
+      "xn----8sbe2agbgbuhwnjm7k2b.xn--p1ai",
+    ],
   },
   preview: {
-    host: "::",
-    port: process.env.PORT || 3000,
+    host: "127.0.0.1",
+    port: Number(process.env.PORT) || 3000,
+    strictPort: true,
+    allowedHosts: [
+      "tvoi-kalkulyator.ru",
+      "xn----8sbe2agbgbuhwnjm7k2b.xn--p1ai",
+    ],
   },
   plugins: [
     react(),
