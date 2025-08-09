@@ -75,6 +75,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
           // Сохраняем токен под ключом 'token' (как читает админка)
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
+          // Сообщаем приложению, что бэкенд-авторизация выполнена
+          window.dispatchEvent(new CustomEvent('backendAuth'));
           
           toast({ 
             title: "Добро пожаловать!",
@@ -117,6 +119,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
             // Если подтверждение не требуется
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
+            // Сообщаем приложению, что бэкенд-авторизация выполнена
+            window.dispatchEvent(new CustomEvent('backendAuth'));
             toast({ title: "Регистрация успешна! Добро пожаловать!" });
             onAuthSuccess();
           }
@@ -181,6 +185,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
         // Сохраняем токен под ключом 'token'
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        // Сообщаем приложению, что бэкенд-авторизация выполнена
+        window.dispatchEvent(new CustomEvent('backendAuth'));
         toast({ title: "Вход в демо-режиме успешен!" });
         onAuthSuccess();
       } else {
@@ -204,6 +210,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
             // Сохраняем токен под ключом 'token'
             localStorage.setItem('token', registerData.token);
             localStorage.setItem('user', JSON.stringify(registerData.user));
+            // Сообщаем приложению, что бэкенд-авторизация выполнена
+            window.dispatchEvent(new CustomEvent('backendAuth'));
             toast({ title: "Демо-аккаунт создан! Добро пожаловать!" });
             onAuthSuccess();
           } else {
