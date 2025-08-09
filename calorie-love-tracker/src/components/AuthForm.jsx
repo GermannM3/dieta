@@ -10,49 +10,95 @@ export const AuthForm = ({ onAuthSuccess }) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Функция для тестирования подключения к API
+  const testApiConnection = async () => {
+    try {
+      console.log("Тестирование подключения к API...");
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      console.log("Статус API:", response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("API ответ:", data);
+        toast({
+          title: "✅ API доступен",
+          description: "Сервер работает корректно",
+        });
+      } else {
+        throw new Error(`API недоступен: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Ошибка подключения к API:", error);
+      toast({
+        title: "❌ API недоступен",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      console.log("Попытка аутентификации:", { email, isLogin });
+      console.log("API URL:", import.meta.env.VITE_API_URL);
+
       if (isLogin) {
         // Вход через наш API
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-          email,
+            email,
             password
           })
         });
         
+        console.log("Ответ сервера:", response.status, response.statusText);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log("Успешный вход:", data);
+          
           // Сохраняем токен в localStorage
           localStorage.setItem('authToken', data.access_token);
           localStorage.setItem('user', JSON.stringify(data.user));
-          console.log("Успешный вход:", data);
-        toast({ title: "Добро пожаловать!" });
+          
+          toast({ 
+            title: "Добро пожаловать!",
+            description: `Вход выполнен для ${data.user?.email || email}`
+          });
           onAuthSuccess();
         } else {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || "Ошибка входа");
+          const errorData = await response.json().catch(() => ({ detail: "Неизвестная ошибка" }));
+          console.error("Ошибка входа:", errorData);
+          throw new Error(errorData.detail || `Ошибка входа: ${response.status}`);
         }
       } else {
         // Регистрация через наш API
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-          email,
-          password,
+            email,
+            password,
             name: email.split('@')[0] // Используем часть email как имя
           })
         });
+        
+        console.log("Ответ сервера регистрации:", response.status, response.statusText);
         
         if (response.ok) {
           const data = await response.json();
@@ -72,8 +118,9 @@ export const AuthForm = ({ onAuthSuccess }) => {
             onAuthSuccess();
           }
         } else {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || "Ошибка регистрации");
+          const errorData = await response.json().catch(() => ({ detail: "Неизвестная ошибка" }));
+          console.error("Ошибка регистрации:", errorData);
+          throw new Error(errorData.detail || `Ошибка регистрации: ${response.status}`);
         }
       }
     } catch (error) {
@@ -92,6 +139,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
         errorMessage = "Некорректный формат email";
       } else if (error.message.includes("Email not confirmed") || error.message.includes("не подтвержден")) {
         errorMessage = "Email не подтвержден. Проверьте почту и нажмите на ссылку подтверждения.";
+      } else if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+        errorMessage = "Ошибка подключения к серверу. Проверьте интернет-соединение.";
       }
       
       toast({
@@ -107,8 +156,10 @@ export const AuthForm = ({ onAuthSuccess }) => {
   const handleDemoLogin = async () => {
     setLoading(true);
     try {
+      console.log("Попытка демо-входа");
+      
       // Вход под демо-аккаунтом через наш API
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -118,6 +169,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
           password: "demo123456"
         })
       });
+      
+      console.log("Ответ демо-входа:", response.status);
       
       if (response.ok) {
         const data = await response.json();
@@ -129,7 +182,8 @@ export const AuthForm = ({ onAuthSuccess }) => {
       } else {
         // Если демо-аккаунт не существует, создаем его
         if (response.status === 401) {
-          const registerResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+          console.log("Создаем демо-аккаунт");
+          const registerResponse = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -216,6 +270,18 @@ export const AuthForm = ({ onAuthSuccess }) => {
               disabled={loading}
             >
               🎭 Демо-вход (без регистрации)
+            </Button>
+          </div>
+
+          {/* Кнопка тестирования API */}
+          <div className="mt-2">
+            <Button 
+              onClick={testApiConnection}
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs"
+            >
+              🔧 Тест подключения к API
             </Button>
           </div>
           
