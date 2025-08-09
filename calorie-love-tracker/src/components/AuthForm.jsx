@@ -73,7 +73,7 @@ export const AuthForm = ({ onAuthSuccess }) => {
           console.log("Успешный вход:", data);
           
           // Сохраняем токен под ключом 'token' (как читает админка)
-          localStorage.setItem('token', data.access_token);
+          localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
           
           toast({ 
@@ -115,7 +115,7 @@ export const AuthForm = ({ onAuthSuccess }) => {
             });
           } else {
             // Если подтверждение не требуется
-            localStorage.setItem('token', data.access_token);
+            localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
             toast({ title: "Регистрация успешна! Добро пожаловать!" });
             onAuthSuccess();
@@ -179,7 +179,7 @@ export const AuthForm = ({ onAuthSuccess }) => {
       if (response.ok) {
         const data = await response.json();
         // Сохраняем токен под ключом 'token'
-        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         toast({ title: "Вход в демо-режиме успешен!" });
         onAuthSuccess();
@@ -202,7 +202,7 @@ export const AuthForm = ({ onAuthSuccess }) => {
           if (registerResponse.ok) {
             const registerData = await registerResponse.json();
             // Сохраняем токен под ключом 'token'
-            localStorage.setItem('token', registerData.access_token);
+            localStorage.setItem('token', registerData.token);
             localStorage.setItem('user', JSON.stringify(registerData.user));
             toast({ title: "Демо-аккаунт создан! Добро пожаловать!" });
             onAuthSuccess();
