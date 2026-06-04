@@ -35,9 +35,9 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 2,
-        shadowColor: Colors.black.withValues(alpha: 0.1),
+        shadowColor: Colors.black.withOpacity( 0.1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         color: AppColors.background,
       ),
@@ -92,9 +92,9 @@ class AppTheme {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primary.withValues(alpha: 0.08),
-            AppColors.accent.withValues(alpha: 0.08),
-            AppColors.info.withValues(alpha: 0.08),
+            AppColors.primary.withOpacity( 0.08),
+            AppColors.accent.withOpacity( 0.08),
+            AppColors.info.withOpacity( 0.08),
           ],
         ),
       );
@@ -104,9 +104,9 @@ class AppTheme {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primary.withValues(alpha: 0.05),
-            AppColors.accent.withValues(alpha: 0.05),
-            AppColors.info.withValues(alpha: 0.05),
+            AppColors.primary.withOpacity( 0.05),
+            AppColors.accent.withOpacity( 0.05),
+            AppColors.info.withOpacity( 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(12),

@@ -68,8 +68,8 @@ class _DietologTabState extends State<DietologTab> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.primary.withValues(alpha: 0.1),
-                AppColors.accent.withValues(alpha: 0.1),
+                AppColors.primary.withOpacity(0.1),
+                AppColors.accent.withOpacity(0.1),
               ],
             ),
           ),
@@ -119,7 +119,7 @@ class _DietologTabState extends State<DietologTab> {
                         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
                         decoration: BoxDecoration(
                           color: isUser
-                              ? AppColors.primary.withValues(alpha: 0.12)
+                              ? AppColors.primary.withOpacity(0.12)
                               : AppColors.muted,
                           borderRadius: BorderRadius.only(
                             topLeft: const Radius.circular(16),

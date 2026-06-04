@@ -127,7 +127,7 @@ class _MoodCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.primary.withValues(alpha: 0.15) : null,
+                    color: selected ? AppColors.primary.withOpacity(0.15) : null,
                     borderRadius: BorderRadius.circular(8),
                     border: selected ? Border.all(color: AppColors.primary) : null,
                   ),
