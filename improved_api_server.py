@@ -20,7 +20,7 @@ from api.ai_api.gigachat_api import GigaChatAPI, generate_text_gigachat
 from api.ai_api.nutrition_api import NutritionAPI
 from datetime import datetime, timedelta
 import pytz
-from api.auth_api import register_user, login_user, confirm_user, get_current_user, UserRegister, UserLogin, UserConfirm
+from api.web_mobile_api import router as web_mobile_router
 from database.crud import update_user_profile
 from database.init_database import WebUser, WebProfile, WebMeal, async_session, User
 from components.payment_system.payment_operations import check_premium
@@ -38,6 +38,7 @@ logger = get_api_logger()
 # CALORIE_NINJAS_URL = "https://api.calorieninjas.com/v1/nutrition?query="
 
 app = FastAPI(title="Диетолог API", version="1.0.0")
+app.include_router(web_mobile_router)
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -779,7 +780,7 @@ async def auth_me(authorization: str = Header(None)):
     
     token = authorization.replace("Bearer ", "")
     try:
-        user = await get_current_user(token)
+        user = await get_current_user_from_token(token)
         return {
             "id": user.id,
             "email": user.email,

@@ -1,0 +1,110 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'android-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Версия релиза (например 1.0.0)'
+        required: false
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.5'
+          cache: true
+
+      - name: Ensure Android platform
+        run: flutter create . --platforms=android --org com.tvoydietolog.app --project-name tvoy_dietolog
+
+      - name: Patch AndroidManifest for HTTP API
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          if ! grep -q 'usesCleartextTraffic' "$MANIFEST"; then
+            sed -i 's|<application|<application android:usesCleartextTraffic="true"|' "$MANIFEST"
+          fi
+          sed -i 's|android:label="[^"]*"|android:label="Твой Диетолог"|' "$MANIFEST" || true
+
+      - name: Create build secrets file
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          APP_NAME: ${{ secrets.APP_NAME }}
+        run: |
+          cat > dart_defines.json << EOF
+          {
+            "API_BASE_URL": "${API_BASE_URL:-http://5.129.198.80:8000}",
+            "APP_NAME": "${APP_NAME:-Твой Диетолог}"
+          }
+          EOF
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build APK
+        run: flutter build apk --release --dart-define-from-file=dart_defines.json
+
+      - name: Build App Bundle
+        run: flutter build appbundle --release --dart-define-from-file=dart_defines.json
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=android-v${{ github.event.inputs.version || '1.0.0' }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Android ${{ steps.version.outputs.tag }}
+          body: |
+            ## Твой Диетолог — Android
+
+            Скачайте APK и установите на телефон (разрешите установку из неизвестных источников).
+
+            **Функции:**
+            - Регистрация и вход
+            - Трекинг калорий и БЖУ (ИИ-расчёт)
+            - Трекер воды и настроения
+            - ИИ-диетолог
+            - Профиль с расчётом нормы калорий
+
+            API: `${{ secrets.API_BASE_URL || 'http://5.129.198.80:8000' }}`
+          files: |
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+            mobile/build/app/outputs/bundle/release/app-release.aab
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

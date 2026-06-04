@@ -27,6 +27,25 @@
 - Синхронизация с телеграм-ботом
 - Адаптивный дизайн для всех устройств
 
+### 📱 Android-приложение (Flutter)
+- Тот же дизайн, что и веб-версия (зелёно-синяя палитра shadcn)
+- Сборка APK на GitHub Actions — локально Flutter не нужен
+- Скачать последний релиз: **[Releases → Android](https://github.com/GermannM3/dieta/releases)**
+
+| Файл | Описание |
+|------|----------|
+| `app-release.apk` | Установка на телефон напрямую |
+| `app-release.aab` | Для Google Play |
+
+**Как собрать релиз:**
+```bash
+git tag android-v1.0.0
+git push origin android-v1.0.0
+```
+Или: Actions → **Android Release** → Run workflow.
+
+Подробнее: [`mobile/README.md`](mobile/README.md)
+
 ## 🚀 Быстрый старт
 
 ### 1. Клонирование проекта
@@ -104,6 +123,7 @@ chmod +x auto-deploy.sh
 dieta/
 ├── main.py                 # Точка входа бота
 ├── improved_api_server.py  # FastAPI сервер
+├── mobile/                 # Flutter Android-приложение
 ├── start_all_services.py   # Запуск всех сервисов
 ├── components/             # Компоненты бота
 │   ├── handlers/          # Обработчики команд

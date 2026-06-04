@@ -1,4 +1,5 @@
 from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -73,21 +74,31 @@ class AuthService:
         except jwt.InvalidTokenError:
             raise HTTPException(status_code=401, detail="Неверный токен")
 
-async def get_current_user(token: str) -> WebUser:
-    """Получение текущего пользователя по токену"""
+security = HTTPBearer()
+
+
+async def get_current_user_from_token(token: str) -> WebUser:
+    """Получение текущего пользователя по JWT-токену"""
     payload = AuthService.decode_token(token)
     user_id = payload.get('user_id')
-    
+
     async with async_session() as session:
         result = await session.execute(
             select(WebUser).where(WebUser.id == user_id)
         )
         user = result.scalar_one_or_none()
-        
+
         if not user:
             raise HTTPException(status_code=401, detail="Пользователь не найден")
-        
+
         return user
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> WebUser:
+    """FastAPI dependency: текущий пользователь из Authorization: Bearer"""
+    return await get_current_user_from_token(credentials.credentials)
 
 async def register_user(user_data: UserRegister) -> AuthResponse:
     """Регистрация нового пользователя"""
