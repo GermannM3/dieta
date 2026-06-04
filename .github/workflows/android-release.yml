@@ -38,9 +38,6 @@ jobs:
           flutter-version: '3.24.5'
           cache: true
 
-      - name: Ensure Android platform
-        run: flutter create . --platforms=android --org com.tvoydietolog.app --project-name tvoy_dietolog
-
       - name: Patch AndroidManifest for HTTP API
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
@@ -48,6 +45,9 @@ jobs:
             sed -i 's|<application|<application android:usesCleartextTraffic="true"|' "$MANIFEST"
           fi
           sed -i 's|android:label="[^"]*"|android:label="Твой Диетолог"|' "$MANIFEST" || true
+
+      - name: Setup Android local.properties
+        run: echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
 
       - name: Create build secrets file
         env:
