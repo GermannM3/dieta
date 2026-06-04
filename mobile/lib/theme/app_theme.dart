@@ -35,10 +35,9 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
       ),
-      cardTheme: CardThemeData(
+      cardTheme: const CardTheme(
         elevation: 2,
-        shadowColor: Colors.black.withOpacity( 0.1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
         color: AppColors.background,
       ),
       inputDecorationTheme: InputDecorationTheme(
