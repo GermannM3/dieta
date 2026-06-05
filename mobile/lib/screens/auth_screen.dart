@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/update_checker.dart';
 import 'home_shell.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -54,8 +55,21 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) UpdateChecker().checkAndPrompt(context, silent: true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

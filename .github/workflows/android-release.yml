@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Версия релиза (например 1.0.0)'
+        description: 'Версия релиза (например 1.2.0)'
         required: false
-        default: '1.0.0'
+        default: '1.2.0'
 
 permissions:
   contents: write
@@ -38,6 +38,43 @@ jobs:
           flutter-version: '3.24.5'
           cache: true
 
+      - name: Read version from pubspec
+        id: ver
+        run: |
+          FULL=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          echo "full=$FULL" >> $GITHUB_OUTPUT
+          echo "name=${FULL%%+*}" >> $GITHUB_OUTPUT
+          echo "code=${FULL##*+}" >> $GITHUB_OUTPUT
+
+      - name: Restore release keystore
+        uses: actions/cache@v4
+        id: keystore-cache
+        with:
+          path: mobile/android/app/upload-keystore.jks
+          key: android-upload-keystore-v1
+
+      - name: Prepare release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android/app/upload-keystore.jks
+            echo "Using keystore from GitHub Secret"
+          elif [ ! -f android/app/upload-keystore.jks ]; then
+            keytool -genkey -v -keystore android/app/upload-keystore.jks \
+              -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 \
+              -alias upload -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DietaUpload2026!' }}" \
+              -keypass "${{ secrets.ANDROID_KEY_PASSWORD || 'DietaUpload2026!' }}" \
+              -dname "CN=Tvoy Dietolog, OU=Mobile, O=GermannM3, L=MSK, ST=MSK, C=RU"
+            echo "::notice::Created new upload keystore (cached for future builds)"
+          fi
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DietaUpload2026!' }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD || 'DietaUpload2026!' }}
+          keyAlias=upload
+          storeFile=app/upload-keystore.jks
+          EOF
+
       - name: Patch AndroidManifest for HTTP API
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
@@ -57,7 +94,8 @@ jobs:
           cat > dart_defines.json << EOF
           {
             "API_BASE_URL": "${API_BASE_URL:-http://5.129.198.80:8000}",
-            "APP_NAME": "${APP_NAME:-Твой Диетолог}"
+            "APP_NAME": "${APP_NAME:-Твой Диетолог}",
+            "GITHUB_REPO": "GermannM3/dieta"
           }
           EOF
 
@@ -73,13 +111,13 @@ jobs:
       - name: Build App Bundle
         run: flutter build appbundle --release --dart-define-from-file=dart_defines.json
 
-      - name: Determine version
+      - name: Determine version tag
         id: version
         run: |
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "tag=android-v${{ github.event.inputs.version || '1.0.0' }}" >> $GITHUB_OUTPUT
+            echo "tag=android-v${{ github.event.inputs.version || steps.ver.outputs.name }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
@@ -90,14 +128,15 @@ jobs:
           body: |
             ## Твой Диетолог — Android
 
-            Скачайте APK и установите на телефон (разрешите установку из неизвестных источников).
+            buildNumber: ${{ steps.ver.outputs.code }}
+
+            Скачайте APK и установите на телефон. Если раньше стояла версия с другой подписью — удалите её один раз, затем все обновления ставятся поверх.
 
             **Функции:**
-            - Регистрация и вход
-            - Трекинг калорий и БЖУ (ИИ-расчёт)
-            - Трекер воды и настроения
-            - ИИ-диетолог
-            - Профиль с расчётом нормы калорий
+            - Автообновление из GitHub Releases
+            - Путь осознанного питания, streak, % жира
+            - ИИ-диетолог с памятью диалога
+            - Трекинг калорий, воды, БЖУ
 
             API: `${{ secrets.API_BASE_URL || 'http://5.129.198.80:8000' }}`
           files: |

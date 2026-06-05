@@ -1,7 +1,7 @@
 name: tvoy_dietolog
 description: Твой Диетолог — Android-приложение для трекинга питания
 publish_to: 'none'
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -14,6 +14,8 @@ dependencies:
   provider: ^6.1.2
   intl: ^0.19.0
   cupertino_icons: ^1.0.8
+  package_info_plus: ^8.0.2
+  ota_update: ^6.0.0
 
 dev_dependencies:
   flutter_test:

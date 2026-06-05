@@ -11,6 +11,11 @@ class AppConfig {
     defaultValue: 'Твой Диетолог',
   );
 
+  static const githubRepo = String.fromEnvironment(
+    'GITHUB_REPO',
+    defaultValue: 'GermannM3/dieta',
+  );
+
   static String get apiUrl => apiBaseUrl.endsWith('/')
       ? '${apiBaseUrl}api'
       : '$apiBaseUrl/api';

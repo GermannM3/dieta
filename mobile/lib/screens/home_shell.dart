@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/update_checker.dart';
 import 'auth_screen.dart';
 import 'dashboard_tab.dart';
 import 'meals_tab.dart';
@@ -20,6 +21,14 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
   static const _titles = ['Главная', 'Питание', 'Прогресс', 'Диетолог', 'Профиль'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) UpdateChecker().checkAndPrompt(context, silent: true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

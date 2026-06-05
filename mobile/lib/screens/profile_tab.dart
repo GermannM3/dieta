@@ -4,6 +4,7 @@ import '../models/models.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
+import '../widgets/update_checker.dart';
 import 'home_shell.dart';
 
 class ProfileTab extends StatefulWidget {
@@ -191,6 +192,8 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
           ),
           if (!widget.forceSetup) ...[
+            const SizedBox(height: 16),
+            const AppUpdateSection(),
             const SizedBox(height: 16),
             AppCard(
               child: Column(
