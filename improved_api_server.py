@@ -137,7 +137,11 @@ async def daily_reset_task():
 @app.on_event("startup")
 async def startup_event():
     logging.info("🚀 API сервер запущен!")
-    # Запускаем фоновую задачу
+    from database.web_migrations import run_web_migrations
+    try:
+        await run_web_migrations()
+    except Exception as e:
+        logging.warning(f"Web migrations: {e}")
     asyncio.create_task(daily_reset_task())
 
 @app.on_event("shutdown")

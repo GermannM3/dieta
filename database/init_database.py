@@ -158,9 +158,33 @@ class WebProfile(Base):
     water_ml = Column(Integer, default=0)
     streak_days = Column(Integer, default=0)
     score = Column(Integer, default=0)
-    is_premium = Column(Boolean, default=False)  # Поле для премиум-подписки
+    is_premium = Column(Boolean, default=False)
+    chat_context = Column(JSON, nullable=True)
+    body_fat_percent = Column(Float, nullable=True)
+    goal_fat_percent = Column(Float, nullable=True)
+    journey_start_at = Column(DateTime, nullable=True)
+    conscious_streak = Column(Integer, default=0)
+    longest_streak = Column(Integer, default=0)
+    total_conscious_days = Column(Integer, default=0)
+    last_streak_date = Column(String(10), nullable=True)
+    starting_weight = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class WebFatTracking(Base):
+    """История замеров жировой массы для web/mobile."""
+    __tablename__ = 'web_fat_tracking'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('web_users.id'), nullable=False)
+    waist_cm = Column(Float, nullable=False)
+    hip_cm = Column(Float, nullable=False)
+    neck_cm = Column(Float, nullable=True)
+    gender = Column(String(10), nullable=False)
+    body_fat_percent = Column(Float, nullable=False)
+    goal_fat_percent = Column(Float, nullable=True)
+    date = Column(String(10), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class WebMeal(Base):
     """Приемы пищи для веб-пользователей (замена Supabase meals)"""

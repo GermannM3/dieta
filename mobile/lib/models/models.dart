@@ -36,6 +36,13 @@ class ProfileModel {
   final int score;
   final int streakDays;
   final bool isPremium;
+  final double? bodyFatPercent;
+  final double? goalFatPercent;
+  final int consciousStreak;
+  final int longestStreak;
+  final int totalConsciousDays;
+  final int journeyDay;
+  final double? startingWeight;
 
   ProfileModel({
     this.name,
@@ -52,6 +59,13 @@ class ProfileModel {
     this.score = 0,
     this.streakDays = 0,
     this.isPremium = false,
+    this.bodyFatPercent,
+    this.goalFatPercent,
+    this.consciousStreak = 0,
+    this.longestStreak = 0,
+    this.totalConsciousDays = 0,
+    this.journeyDay = 0,
+    this.startingWeight,
   });
 
   bool get isComplete =>
@@ -78,6 +92,13 @@ class ProfileModel {
       score: json['score'] as int? ?? 0,
       streakDays: json['streak_days'] as int? ?? 0,
       isPremium: json['is_premium'] as bool? ?? false,
+      bodyFatPercent: (json['body_fat_percent'] as num?)?.toDouble(),
+      goalFatPercent: (json['goal_fat_percent'] as num?)?.toDouble(),
+      consciousStreak: json['conscious_streak'] as int? ?? 0,
+      longestStreak: json['longest_streak'] as int? ?? 0,
+      totalConsciousDays: json['total_conscious_days'] as int? ?? 0,
+      journeyDay: json['journey_day'] as int? ?? 0,
+      startingWeight: (json['starting_weight'] as num?)?.toDouble(),
     );
   }
 
@@ -91,7 +112,81 @@ class ProfileModel {
         if (waterTarget != 2000) 'water_target': waterTarget,
         if (stepsTarget != 10000) 'steps_target': stepsTarget,
         if (mood != null) 'mood': mood,
+        if (goalFatPercent != null) 'goal_fat_percent': goalFatPercent,
       };
+}
+
+class MotivationCard {
+  final String type;
+  final String emoji;
+  final String title;
+  final String text;
+
+  MotivationCard({required this.type, required this.emoji, required this.title, required this.text});
+
+  factory MotivationCard.fromJson(Map<String, dynamic> json) => MotivationCard(
+        type: json['type'] as String? ?? '',
+        emoji: json['emoji'] as String? ?? '💡',
+        title: json['title'] as String? ?? '',
+        text: json['text'] as String? ?? '',
+      );
+}
+
+class JourneyData {
+  final int journeyDay;
+  final int consciousStreak;
+  final int longestStreak;
+  final int totalConsciousDays;
+  final List<MotivationCard> cards;
+  final List<Map<String, dynamic>> weeklyCalories;
+
+  JourneyData({
+    required this.journeyDay,
+    required this.consciousStreak,
+    required this.longestStreak,
+    required this.totalConsciousDays,
+    required this.cards,
+    required this.weeklyCalories,
+  });
+
+  factory JourneyData.fromJson(Map<String, dynamic> json) {
+    final m = json['motivation'] as Map<String, dynamic>? ?? {};
+    return JourneyData(
+      journeyDay: m['journey_day'] as int? ?? 0,
+      consciousStreak: m['conscious_streak'] as int? ?? 0,
+      longestStreak: m['longest_streak'] as int? ?? 0,
+      totalConsciousDays: m['total_conscious_days'] as int? ?? 0,
+      cards: (m['cards'] as List? ?? []).map((e) => MotivationCard.fromJson(e as Map<String, dynamic>)).toList(),
+      weeklyCalories: (json['weekly_calories'] as List? ?? []).cast<Map<String, dynamic>>(),
+    );
+  }
+}
+
+class FatMeasurement {
+  final double fatPercent;
+  final String category;
+  final String emoji;
+  final String method;
+  final double? goalFatPercent;
+  final String date;
+
+  FatMeasurement({
+    required this.fatPercent,
+    required this.category,
+    required this.emoji,
+    required this.method,
+    this.goalFatPercent,
+    required this.date,
+  });
+
+  factory FatMeasurement.fromJson(Map<String, dynamic> json) => FatMeasurement(
+        fatPercent: (json['fat_percent'] as num).toDouble(),
+        category: json['category'] as String? ?? '',
+        emoji: json['emoji'] as String? ?? '📊',
+        method: json['method'] as String? ?? '',
+        goalFatPercent: (json['goal_fat_percent'] as num?)?.toDouble(),
+        date: json['date'] as String? ?? '',
+      );
 }
 
 class MealModel {

@@ -150,14 +150,58 @@ class ApiService {
     return data['stats'] as Map<String, dynamic>;
   }
 
-  Future<String> askDietolog(String message, List<Map<String, String>> history) async {
+  Future<String> askDietolog(String message) async {
     final res = await _client.post(
       _uri('/web/dietolog'),
       headers: _headers,
-      body: jsonEncode({'message': message, 'history': history}),
+      body: jsonEncode({'message': message}),
     );
     final data = await _handle(res);
     return data['response'] as String;
+  }
+
+  Future<List<ChatMessage>> getDietologHistory() async {
+    final res = await _client.get(_uri('/web/dietolog/history'), headers: _headers);
+    final data = await _handle(res);
+    return (data['history'] as List? ?? [])
+        .map((e) => ChatMessage(role: e['role'] as String, content: e['content'] as String))
+        .toList();
+  }
+
+  Future<void> clearDietologHistory() async {
+    await _client.delete(_uri('/web/dietolog/history'), headers: _headers);
+  }
+
+  Future<JourneyData> getJourney() async {
+    final res = await _client.get(_uri('/web/journey'), headers: _headers);
+    final data = await _handle(res);
+    return JourneyData.fromJson(data);
+  }
+
+  Future<FatMeasurement> measureFat({
+    required double waistCm,
+    required double hipCm,
+    double? neckCm,
+    double? goalFatPercent,
+  }) async {
+    final res = await _client.post(
+      _uri('/web/fat/measure'),
+      headers: _headers,
+      body: jsonEncode({
+        'waist_cm': waistCm,
+        'hip_cm': hipCm,
+        if (neckCm != null) 'neck_cm': neckCm,
+        if (goalFatPercent != null) 'goal_fat_percent': goalFatPercent,
+      }),
+    );
+    final data = await _handle(res);
+    return FatMeasurement.fromJson(data['measurement'] as Map<String, dynamic>);
+  }
+
+  Future<List<Map<String, dynamic>>> getFatHistory() async {
+    final res = await _client.get(_uri('/web/fat/history'), headers: _headers);
+    final data = await _handle(res);
+    return (data['history'] as List).cast<Map<String, dynamic>>();
   }
 
   Future<bool> healthCheck() async {

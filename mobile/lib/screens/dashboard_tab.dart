@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/models.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
@@ -24,9 +25,13 @@ class DashboardTab extends StatelessWidget {
         children: [
           if (state.user != null)
             Text(
-              'Привет, ${profile?.name ?? state.user!.name ?? state.user!.email}!',
-              style: const TextStyle(fontSize: 16, color: AppColors.mutedForeground),
+              'Привет, ${profile?.name ?? state.user!.name ?? state.user!.email}! 👋',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
+          if (state.journey != null && state.journey!.cards.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _DailyMotivationBanner(card: state.journey!.cards.first),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -64,6 +69,42 @@ class DashboardTab extends StatelessWidget {
                 _MacroRow('Жиры', stats?['total_fat'], AppColors.healthWarning),
                 _MacroRow('Углеводы', stats?['total_carbs'], AppColors.primary),
                 _MacroRow('Приёмов пищи', stats?['total_meals'], AppColors.mutedForeground),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DailyMotivationBanner extends StatelessWidget {
+  const _DailyMotivationBanner({required this.card});
+  final MotivationCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.accent.withOpacity(0.08), AppColors.primary.withOpacity(0.08)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.accent.withOpacity(0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(card.emoji, style: const TextStyle(fontSize: 24)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(card.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(card.text, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12, height: 1.35)),
               ],
             ),
           ),
