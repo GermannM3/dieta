@@ -1,16 +1,20 @@
 [Unit]
 Description=Dieta Telegram Bot
-After=network.target
+After=network-online.target warp-proxy.service
+Wants=network-online.target warp-proxy.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 User=root
 WorkingDirectory=/opt/dieta
+EnvironmentFile=/opt/dieta/.env
 ExecStart=/opt/dieta/venv/bin/python main.py
 Restart=always
-RestartSec=3
+RestartSec=5
+TimeoutStopSec=30
 StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=multi-user.target 
+WantedBy=multi-user.target

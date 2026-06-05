@@ -1,0 +1,11 @@
+[Unit]
+Description=Dieta auto-deploy from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/dieta
+ExecStart=/opt/dieta/scripts/auto_deploy.sh
+StandardOutput=journal
+StandardError=journal

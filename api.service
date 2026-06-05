@@ -1,14 +1,20 @@
 [Unit]
 Description=Dieta API
-After=network.target
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 User=root
 WorkingDirectory=/opt/dieta
+EnvironmentFile=-/opt/dieta/.env
 ExecStart=/opt/dieta/venv/bin/python -m uvicorn improved_api_server:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=5
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
 
 [Install]
-WantedBy=multi-user.target 
+WantedBy=multi-user.target
