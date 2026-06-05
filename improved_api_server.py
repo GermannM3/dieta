@@ -20,6 +20,7 @@ from api.ai_api.gigachat_api import GigaChatAPI, generate_text_gigachat
 from api.ai_api.nutrition_api import NutritionAPI
 from datetime import datetime, timedelta
 import pytz
+from api.auth_api import register_user, login_user, confirm_user, get_current_user, get_current_user_from_token, UserRegister, UserLogin, UserConfirm
 from api.web_mobile_api import router as web_mobile_router
 from database.crud import update_user_profile
 from database.init_database import WebUser, WebProfile, WebMeal, async_session, User
