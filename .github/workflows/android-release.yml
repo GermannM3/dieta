@@ -95,7 +95,9 @@ jobs:
           {
             "API_BASE_URL": "${API_BASE_URL:-http://5.129.198.80:8000}",
             "APP_NAME": "${APP_NAME:-Твой Диетолог}",
-            "GITHUB_REPO": "GermannM3/dieta"
+            "GITHUB_REPO": "GermannM3/dieta",
+            "TG_BOT_URL": "https://t.me/tvoy_diet_bot",
+            "TG_BOT_USERNAME": "@tvoy_diet_bot"
           }
           EOF
 
@@ -107,6 +109,13 @@ jobs:
 
       - name: Build APK
         run: flutter build apk --release --dart-define-from-file=dart_defines.json
+
+      - name: Verify APK signature
+        run: |
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          ls -la "$APK"
+          "${ANDROID_HOME}/build-tools/34.0.0/apksigner" verify --verbose "$APK" || \
+          apksigner verify --verbose "$APK"
 
       - name: Build App Bundle
         run: flutter build appbundle --release --dart-define-from-file=dart_defines.json
@@ -130,13 +139,12 @@ jobs:
 
             buildNumber: ${{ steps.ver.outputs.code }}
 
-            Скачайте APK и установите на телефон. Если раньше стояла версия с другой подписью — удалите её один раз, затем все обновления ставятся поверх.
+            Подписано release-ключом (v2/v3). При первой установке вне Google Play Android может показать предупреждение Play Protect — это нормально для APK с GitHub. Нажмите «Всё равно установить».
 
-            **Функции:**
-            - Автообновление из GitHub Releases
-            - Путь осознанного питания, streak, % жира
-            - ИИ-диетолог с памятью диалога
-            - Трекинг калорий, воды, БЖУ
+            **Что нового в 1.3.0:**
+            - Иконка как у Telegram-бота
+            - Ссылка на @tvoy_diet_bot
+            - Убраны лишние пояснения в интерфейсе
 
             API: `${{ secrets.API_BASE_URL || 'http://5.129.198.80:8000' }}`
           files: |

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/telegram_link.dart';
 import '../widgets/update_checker.dart';
 import 'home_shell.dart';
 
@@ -39,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('🥗', style: TextStyle(fontSize: 64)),
+              _AppLogo(size: 96),
               SizedBox(height: 16),
               Text(
                 'Твой Диетолог',
@@ -83,26 +84,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               children: [
                 Align(
                   alignment: Alignment.topRight,
-                  child: TextButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.telegram, color: AppColors.accent),
-                    label: const Text('@tvoy_diet_bot', style: TextStyle(color: AppColors.accent)),
-                  ),
+                  child: TelegramBotButton(compact: true),
                 ),
                 const Spacer(),
-                const Text('🥗', style: TextStyle(fontSize: 72)),
+                const _AppLogo(size: 120),
                 const SizedBox(height: 16),
                 const Text(
-                  'Трекер Калорий',
+                  'Твой Диетолог',
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Персональный ИИ-диетолог в кармане.\nСчитай калории, следи за водой и достигай целей.',
+                  'Считай калории, следи за водой и достигай целей.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColors.mutedForeground, height: 1.5),
                 ),
+                const SizedBox(height: 16),
+                const TelegramBotButton(outlined: true),
                 const Spacer(),
                 ElevatedButton(
                   onPressed: () => Navigator.push(
@@ -232,6 +231,25 @@ class _AuthScreenState extends State<AuthScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AppLogo extends StatelessWidget {
+  const _AppLogo({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipOval(
+      child: Image.asset(
+        'assets/images/app_logo.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Text('🥗', style: TextStyle(fontSize: size * 0.7)),
       ),
     );
   }

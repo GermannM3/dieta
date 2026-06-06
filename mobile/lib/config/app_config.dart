@@ -16,6 +16,16 @@ class AppConfig {
     defaultValue: 'GermannM3/dieta',
   );
 
+  static const telegramBotUsername = String.fromEnvironment(
+    'TG_BOT_USERNAME',
+    defaultValue: '@tvoy_diet_bot',
+  );
+
+  static const telegramBotUrl = String.fromEnvironment(
+    'TG_BOT_URL',
+    defaultValue: 'https://t.me/tvoy_diet_bot',
+  );
+
   static String get apiUrl => apiBaseUrl.endsWith('/')
       ? '${apiBaseUrl}api'
       : '$apiBaseUrl/api';

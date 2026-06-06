@@ -113,7 +113,7 @@ class ProgressTab extends StatelessWidget {
                   ],
                 ] else
                   const Text(
-                    'Сделай первый замер — талия, бёдра, (шея для мужчин). Формула Navy Method как в Telegram-боте.',
+                    'Сделай первый замер — талия, бёдра, (шея для мужчин).',
                     style: TextStyle(color: AppColors.mutedForeground, height: 1.4),
                   ),
                 const SizedBox(height: 12),
@@ -123,22 +123,6 @@ class ProgressTab extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const FatTrackerScreen()),
                   ),
                   child: Text(profile?.bodyFatPercent != null ? 'Новый замер' : 'Начать замер'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionTitle('Как это работает', icon: Icons.info_outline),
-                const SizedBox(height: 8),
-                const Text(
-                  '«Путь осознанного питания» — как в приложениях «Не курю» или «Не пью», только про еду.\n\n'
-                  'Каждый день в норме калорий — +1 к серии. На экране появляются факты: что уже меняется в организме на 3-й, 7-й, 30-й день.\n\n'
-                  'Не идеальность, а стабильность.',
-                  style: TextStyle(color: AppColors.mutedForeground, height: 1.5, fontSize: 13),
                 ),
               ],
             ),
