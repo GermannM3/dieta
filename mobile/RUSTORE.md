@@ -16,7 +16,25 @@
 3. Тип: **Универсальное** (телефон/планшет)
 4. Package name (уже в APK): `com.tvoydietolog.app`
 
-## 3. APK для загрузки
+## 3. APK и иконка для RuStore
+
+### Иконка (1:1, 32–512 px, до 1 МБ)
+
+Готовые файлы в репозитории:
+
+```
+mobile/store/rustore_icon_512.png  ← загружай эту в консоль (512×512, ~250 KB)
+mobile/store/rustore_icon_256.png
+mobile/store/rustore_icon_128.png
+```
+
+Перегенерировать из аватара бота:
+
+```bash
+python3 mobile/scripts/generate_launcher_icons.py
+```
+
+### APK для загрузки
 
 Бери готовый релиз с GitHub:
 

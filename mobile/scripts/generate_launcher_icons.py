@@ -69,6 +69,15 @@ def main() -> None:
     logo = make_icon(512)
     logo.save(ASSETS / "app_logo.png")
 
+    store_dir = ROOT / "store"
+    store_dir.mkdir(parents=True, exist_ok=True)
+    for px in (512, 256, 128, 64, 32):
+        icon = make_icon(px)
+        out = store_dir / f"rustore_icon_{px}.png"
+        icon.save(out, optimize=True)
+        size_kb = out.stat().st_size / 1024
+        print(f"  {out.name}: {px}x{px}, {size_kb:.0f} KB")
+
     for folder, px in SIZES.items():
         out_dir = RES / folder
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -105,7 +114,7 @@ def main() -> None:
 """,
         encoding="utf-8",
     )
-    print("Generated launcher icons and assets/images/app_logo.png")
+    print("Generated launcher icons, store/rustore_icon_*.png, assets/images/app_logo.png")
 
 
 if __name__ == "__main__":
