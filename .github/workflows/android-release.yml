@@ -97,7 +97,8 @@ jobs:
             "APP_NAME": "${APP_NAME:-Твой Диетолог}",
             "GITHUB_REPO": "GermannM3/dieta",
             "TG_BOT_URL": "https://t.me/tvoy_diet_bot",
-            "TG_BOT_USERNAME": "@tvoy_diet_bot"
+            "TG_BOT_USERNAME": "@tvoy_diet_bot",
+            "RUSTORE_APP_URL": "https://www.rustore.ru/catalog/app/com.tvoydietolog.app"
           }
           EOF
 

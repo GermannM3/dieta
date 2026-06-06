@@ -199,6 +199,8 @@ class _ProfileTabState extends State<ProfileTab> {
             AppCard(
               child: Column(
                 children: const [
+                  RustoreLinkTile(),
+                  Divider(height: 1),
                   TelegramBotTile(),
                 ],
               ),

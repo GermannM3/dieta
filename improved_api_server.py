@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, Query, Header, Depends, Request
+from fastapi.responses import FileResponse
+from pathlib import Path
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -739,6 +740,14 @@ async def generate_menu(request: MenuRequest):
 @app.get("/")
 async def root():
     return {"message": "Диетолог API работает!", "version": "1.0.0"}
+
+
+@app.get("/privacy")
+async def privacy_policy():
+    path = Path(__file__).resolve().parent / "static" / "privacy.html"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Privacy policy not found")
+    return FileResponse(path, media_type="text/html; charset=utf-8")
 
 # Добавляем эндпоинты аутентификации
 @app.post("/api/auth/register")

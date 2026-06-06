@@ -26,6 +26,12 @@ class AppConfig {
     defaultValue: 'https://t.me/tvoy_diet_bot',
   );
 
+  /// Ссылка на карточку приложения в RuStore (после публикации).
+  static const rustoreAppUrl = String.fromEnvironment(
+    'RUSTORE_APP_URL',
+    defaultValue: 'https://www.rustore.ru/catalog/app/com.tvoydietolog.app',
+  );
+
   static String get apiUrl => apiBaseUrl.endsWith('/')
       ? '${apiBaseUrl}api'
       : '$apiBaseUrl/api';
