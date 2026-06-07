@@ -91,12 +91,11 @@ keytool -list -v -keystore upload-keystore.jks -alias upload
 
 ## 5. Безопасность данных (декларация разрешений)
 
-В приложении запрашивается:
+В приложении запрашивается только:
 - **INTERNET** — работа с API и ИИ
 - **ACCESS_NETWORK_STATE** — проверка сети
-- **REQUEST_INSTALL_PACKAGES** — автообновление для пользователей, скачавших APK с GitHub (не из RuStore)
 
-При установке **из RuStore** обновления идут через RuStore SDK — без предупреждения Play Protect.
+Разрешения `REQUEST_INSTALL_PACKAGES`, `READ/WRITE_EXTERNAL_STORAGE` **удалены** — RuStore их не пропускает. Обновления только через RuStore SDK.
 
 ## 6. Отправка на модерацию
 
@@ -128,6 +127,6 @@ https://www.rustore.ru/catalog/app/com.tvoydietolog.app
 
 **«Подпись не совпадает»** — загружаешь APK, подписанный другим ключом. Всегда используй релизы с GitHub Actions (keystore в кэше CI).
 
-**Модерация отклонила разрешения** — напиши в комментарии, что REQUEST_INSTALL_PACKAGES нужен только для sideload-сборок; основной канал — RuStore.
+**Модерация отклонила REQUEST_INSTALL_PACKAGES** — убери sideload-обновления из APK (версия 1.3.3+). Загрузи новую сборку без этого разрешения.
 
 **Обновления RuStore SDK не работают** — нужны 2 версии в консоли (старая и новая), RuStore установлен на телефоне, пользователь авторизован в RuStore.

@@ -4,11 +4,10 @@ from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from dotenv import load_dotenv
 
-import os
-
 from database.crud import amount_of_users, get_all_users
 from components.keyboards.admin_kb import kb_admin, kb_cancel
 from components.states.admin_states import Admin
+from components.access_config import is_owner
 from core.init_bot import bot
 
 
@@ -18,7 +17,7 @@ load_dotenv()
 
 @admin_router.message(Command('admin'))
 async def admin(message: Message):
-    if message.from_user.id == int(os.getenv('ADMIN_ID')):
+    if is_owner(message.from_user.id):
         amount = await amount_of_users()
         
         await message.answer(f'Количество пользователей: {amount}\n\n',

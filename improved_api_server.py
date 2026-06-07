@@ -26,6 +26,7 @@ from api.web_mobile_api import router as web_mobile_router
 from database.crud import update_user_profile
 from database.init_database import WebUser, WebProfile, WebMeal, async_session, User
 from components.payment_system.payment_operations import check_premium
+from components.access_config import is_free_user
 
 load_dotenv()
 
@@ -1024,7 +1025,7 @@ async def get_payment_status(user_id: int):
                 select(User).where(User.tg_id == user_id)
             )
             user = user.scalar_one_or_none()
-            is_premium = user.is_premium if user else False
+            is_premium = is_free_user(user_id) or (user.is_premium if user else False)
         
         return {
             "user_id": user_id,

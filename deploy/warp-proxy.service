@@ -2,16 +2,18 @@
 Description=Cloudflare WARP SOCKS5 proxy for Telegram
 After=network-online.target warp-svc.service
 Wants=network-online.target
+Requires=warp-svc.service
 Before=bot.service
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
+ExecStartPre=/usr/bin/warp-cli --accept-tos disconnect
 ExecStartPre=/usr/bin/warp-cli --accept-tos mode proxy
-ExecStart=/bin/bash -c 'warp-cli --accept-tos connect && exec sleep infinity'
+ExecStart=/bin/bash -c 'warp-cli --accept-tos connect && while sleep 60; do warp-cli --accept-tos status 2>/dev/null | grep -q "Connected" || warp-cli --accept-tos connect; done'
 ExecStop=/usr/bin/warp-cli --accept-tos disconnect
 Restart=always
-RestartSec=10
+RestartSec=15
 
 [Install]
 WantedBy=multi-user.target

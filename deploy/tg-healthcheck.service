@@ -1,0 +1,7 @@
+[Unit]
+Description=Check WARP proxy and restart bot if Telegram is down
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/dieta/scripts/tg_proxy_healthcheck.sh

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rustore_update/flutter_rustore_update.dart';
-import 'package:ota_update/ota_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -9,7 +8,7 @@ import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import 'common_widgets.dart';
 
-/// Сначала RuStore (если приложение установлено из стора), иначе GitHub Releases.
+/// Обновления только через RuStore (требование модерации).
 class UpdateChecker {
   UpdateChecker({UpdateService? github}) : _github = github ?? UpdateService();
 
@@ -21,7 +20,7 @@ class UpdateChecker {
   }) async {
     try {
       if (await _checkRustore(context, silent: silent)) return;
-      await _checkGithub(context, silent: silent);
+      await _checkGithubFallback(context, silent: silent);
     } catch (e) {
       if (!silent && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -106,7 +105,7 @@ class UpdateChecker {
     }
   }
 
-  Future<void> _checkGithub(BuildContext context, {required bool silent}) async {
+  Future<void> _checkGithubFallback(BuildContext context, {required bool silent}) async {
     final update = await _github.checkForUpdate();
     if (update == null || !context.mounted) return;
 
@@ -114,73 +113,34 @@ class UpdateChecker {
       context: context,
       barrierDismissible: true,
       builder: (ctx) => AlertDialog(
-        title: const Text('Доступно обновление'),
+        title: const Text('Доступна новая версия'),
         content: Text(
           'Версия ${update.version}.\n\n'
-          'Скачать APK с GitHub и установить?',
+          'Обновление устанавливается через RuStore или страницу релиза на GitHub.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Позже')),
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _installGithubApk(context, update);
+              _openUpdatePage(context, update);
             },
-            child: const Text('Обновить'),
+            child: const Text('Открыть'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _installGithubApk(BuildContext context, AppUpdateInfo update) async {
-    if (!context.mounted) return;
+  Future<void> _openUpdatePage(BuildContext context, AppUpdateInfo update) async {
+    final rustore = Uri.parse(AppConfig.rustoreAppUrl);
+    if (await launchUrl(rustore, mode: LaunchMode.externalApplication)) return;
 
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Скачиваем обновление...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      await for (final event in OtaUpdate().execute(
-        update.apkUrl,
-        destinationFilename: 'tvoy_dietolog_update.apk',
-      )) {
-        if (!context.mounted) return;
-        if (event.status == OtaStatus.INSTALLING) {
-          Navigator.of(context, rootNavigator: true).pop();
-        } else if (event.status == OtaStatus.PERMISSION_NOT_GRANTED_ERROR) {
-          Navigator.of(context, rootNavigator: true).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Разрешите установку из неизвестных источников'),
-            ),
-          );
-          return;
-        } else if (event.status == OtaStatus.INTERNAL_ERROR ||
-            event.status == OtaStatus.DOWNLOAD_ERROR) {
-          Navigator.of(context, rootNavigator: true).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка: ${event.value ?? event.status}')),
-          );
-          return;
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
-      }
+    final release = Uri.parse('https://github.com/${AppConfig.githubRepo}/releases/tag/${update.tag}');
+    if (!await launchUrl(release, mode: LaunchMode.externalApplication) && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось открыть страницу обновления')),
+      );
     }
   }
 }

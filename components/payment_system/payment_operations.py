@@ -2,6 +2,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional
+from components.access_config import is_free_user
 from yookassa import Configuration, Payment
 from yookassa.domain.exceptions.api_error import ApiError as YooKassaError
 from database.init_database import async_session, Subscription
@@ -192,6 +193,8 @@ class PaymentManager:
         Returns:
             bool: True если подписка активна
         """
+        if is_free_user(user_id):
+            return True
         try:
             async with async_session() as session:
                 # Ищем активную подписку
@@ -265,6 +268,8 @@ def check_premium(tg_id: int) -> bool:
     Returns:
         bool: True если у пользователя есть премиум
     """
+    if is_free_user(tg_id):
+        return True
     try:
         import asyncio
         from database.init_database import async_session_maker
