@@ -1,4 +1,6 @@
+from fastapi import FastAPI, HTTPException, Query, Header, Request, Depends
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from pydantic import BaseModel
 from typing import Optional
@@ -23,6 +25,8 @@ from datetime import datetime, timedelta
 import pytz
 from api.auth_api import register_user, login_user, confirm_user, get_current_user, get_current_user_from_token, UserRegister, UserLogin, UserConfirm
 from api.web_mobile_api import router as web_mobile_router
+from api.telegram_mini_app_api import router as tg_mini_app_router
+from utils.daily_water import ensure_user_water_today, ensure_profile_water_today
 from database.crud import update_user_profile
 from database.init_database import WebUser, WebProfile, WebMeal, async_session, User
 from components.payment_system.payment_operations import check_premium
@@ -42,6 +46,11 @@ logger = get_api_logger()
 
 app = FastAPI(title="Диетолог API", version="1.0.0")
 app.include_router(web_mobile_router)
+app.include_router(tg_mini_app_router)
+
+_MINIAPP_DIR = Path(__file__).resolve().parent / "static" / "miniapp"
+if _MINIAPP_DIR.is_dir():
+    app.mount("/miniapp", StaticFiles(directory=str(_MINIAPP_DIR), html=True), name="miniapp")
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -284,6 +293,8 @@ async def get_profile(tg_id: int = Query(...)):
             user = await session.get(User, tg_id)
             if not user:
                 return {"profile": {}}
+            if ensure_user_water_today(user):
+                await session.commit()
             
             profile = {
                 "name": user.name,
@@ -624,6 +635,8 @@ async def get_water(user_id: int = Query(...)):
             user = await session.get(User, user_id)
             if not user:
                 return {"water_ml": 0}
+            if ensure_user_water_today(user):
+                await session.commit()
             return {"water_ml": getattr(user, 'water_ml', 0) or 0}
         except Exception as e:
             logging.error(f"Ошибка при получении данных о воде: {e}")
@@ -637,6 +650,7 @@ async def add_water(water: WaterIn):
             user = User(tg_id=water.user_id)
             session.add(user)
         
+        ensure_user_water_today(user)
         current_water = getattr(user, 'water_ml', 0) or 0
         user.water_ml = current_water + water.amount_ml
         await session.commit()

@@ -980,6 +980,10 @@ async def water_command(message: Message, state: FSMContext):
     # Быстро получаем текущее количество воды из локальной БД
     async with async_session() as session:
         user = await session.get(User, message.from_user.id)
+        if user:
+            from utils.daily_water import ensure_user_water_today
+            if ensure_user_water_today(user):
+                await session.commit()
         current_water = (user.water_ml or 0) if user else 0
     
     await message.answer(f"Выпито воды: {current_water} мл\n\nВведите количество мл, которое вы выпили:", reply_markup=kb.back_kb)
@@ -1003,11 +1007,13 @@ async def water_add_input(message: Message, state: FSMContext):
     
     # Обновляем воду в локальной базе данных
     async with async_session() as session:
+        from utils.daily_water import ensure_user_water_today
         user = await session.get(User, message.from_user.id)
         if not user:
             user = User(tg_id=message.from_user.id, water_ml=ml)
             session.add(user)
         else:
+            ensure_user_water_today(user)
             user.water_ml = (user.water_ml or 0) + ml
         await session.commit()
     
@@ -1475,7 +1481,7 @@ async def dietolog_command(message: Message, state: FSMContext):
             "• Персональные рекомендации по диете\n"
             "• Анализ вашего рациона\n"
             "• Советы по достижению целей\n\n"
-            "💰 <b>Стоимость:</b> 200₽ за 7 дней\n\n"
+            "💰 <b>Стоимость:</b> 50₽ за месяц\n\n"
             "Для покупки подписки используйте команду: /diet_consultant",
             parse_mode="HTML"
         )
@@ -1500,7 +1506,7 @@ async def menu_command(message: Message, state: FSMContext):
             "• Сбалансированное питание\n"
             "• Разнообразные блюда\n"
             "• Подробные рецепты\n\n"
-            "💰 <b>Стоимость:</b> 200₽ за 7 дней\n\n"
+            "💰 <b>Стоимость:</b> 100₽ за месяц\n\n"
             "Для покупки подписки используйте команду: /menu_generator",
             parse_mode="HTML"
         )

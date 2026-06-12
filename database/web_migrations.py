@@ -16,6 +16,7 @@ WEB_PROFILE_COLUMNS = [
     ("total_conscious_days", "INTEGER DEFAULT 0"),
     ("last_streak_date", "VARCHAR(10)"),
     ("starting_weight", "FLOAT"),
+    ("water_date", "VARCHAR(10)"),
 ]
 
 WEB_FAT_TRACKING_DDL = """

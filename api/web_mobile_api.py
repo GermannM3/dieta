@@ -21,7 +21,7 @@ from database.init_database import (
     async_session,
 )
 
-logger = logging.getLogger(__name__)
+from utils.daily_water import ensure_profile_water_today
 router = APIRouter(prefix="/api/web", tags=["web-mobile"])
 
 MAX_CHAT_MESSAGES = 20
@@ -84,6 +84,9 @@ async def get_or_create_profile(session, user_id: int) -> WebProfile:
     if not profile:
         profile = WebProfile(user_id=user_id)
         session.add(profile)
+        await session.commit()
+        await session.refresh(profile)
+    if ensure_profile_water_today(profile):
         await session.commit()
         await session.refresh(profile)
     return profile

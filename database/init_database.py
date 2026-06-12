@@ -168,6 +168,7 @@ class WebProfile(Base):
     total_conscious_days = Column(Integer, default=0)
     last_streak_date = Column(String(10), nullable=True)
     starting_weight = Column(Float, nullable=True)
+    water_date = Column(String(10), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
