@@ -23,6 +23,7 @@ from components.payment_system.payment_operations import (
 )
 from components.telegram_auth import create_tg_token, decode_tg_token, validate_init_data
 from components.payment_system.payment_operations import check_premium
+from database.init_database import User, Meal, FatTracking, async_session
 from utils.daily_water import ensure_user_water_today
 
 logger = logging.getLogger(__name__)

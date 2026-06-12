@@ -22,6 +22,8 @@ from database.init_database import (
 )
 
 from utils.daily_water import ensure_profile_water_today
+
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/web", tags=["web-mobile"])
 
 MAX_CHAT_MESSAGES = 20
